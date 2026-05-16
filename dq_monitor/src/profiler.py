@@ -62,3 +62,126 @@
 
 Поэтому проектируйте публичный API именно под такое использование.
 """
+from typing import Optional, List
+from dataclasses import dataclass
+from enum import Enum
+import pandas as pd
+
+#FIXME обоснование использования таких классов: другие части приложения
+#будут взаимодействовать с данными ошибками и чтобы их определять и не 
+#иметь проблем с опечатками мы используем переменные как константы
+class DQDimension(str, Enum):
+    "класс констант измерений"
+    COMPLETENESS = "Completeness"
+    VALIDITY = "Validity"
+    CONSISTENCY = "Consistency"
+    UNIQUENESS = "Uniqueness"
+
+class IssueType(Enum):
+    """
+    Класс констант типов ошибок.
+    Значение (value) — это кортеж: (имя_для_метода, описание_для_ui, измерение)
+    """
+    # Пример создания:
+    BAD_FORMAT_DATE = ("bad_format_date", "Неверный формат данных времени", DQDimension.VALIDITY)
+
+    @property
+    def method_name(self) -> str:
+        """Служебное имя, используется для поиска метода (например, 'bad_format_date')."""
+        return self.value[0]
+        
+    @property
+    def description(self) -> str:
+        """Человекочитаемое описание для UI."""
+        return self.value[1]
+        
+    @property
+    def dimension(self) -> DQDimension:
+        """Тип измерения качества."""
+        return self.value[2]
+
+#TODO сами типы определяются DQ
+
+
+
+ALL = "all" #служебное определение для column, если нет четкого столбца
+
+#Датакласс для одной ошибки
+@dataclass
+class Issue:
+    issue_type: IssueType
+    column: str          # В какой колонке найдено ("currency" / ALL)
+    rows_affected: int   # Количество затронутых строк
+    
+    @property
+    def dimension(self) -> DQDimension:
+        return self.issue_type.dimension
+        
+    @property
+    def description(self) -> str:
+        return self.issue_type.description
+
+@dataclass
+class Report:
+    total_rows: int
+    issues: List[Issue]
+    
+    def to_dataframe(self) -> pd.DataFrame:
+        if not self.issues:
+            return pd.DataFrame(columns=["Измерение", "Тип", "Колонка", "Описание", "Затронуто строк"])
+            
+        return pd.DataFrame([
+            {
+                "Измерение": issue.dimension.value,
+                "Тип": issue.issue_type.name,  # Имя константы (например, 'BAD_FORMAT_DATE')
+                "Колонка": issue.column,
+                "Описание": issue.description,
+                "Затронуто строк": issue.rows_affected
+            }
+            for issue in self.issues
+        ])
+
+#TODO Основная идея архитектуры:
+#DQ реализует только сами  issue в виде констант и функций
+#не задумываясь о том, как данные будут затем передаваться и обрабатываться
+class DataProfiler():
+    def profile(self, df: pd.DataFrame) -> Report:
+      issues = []
+      # Список обхода поиска ошибок
+      checks_to_run: list[IssueType] = [
+          IssueType.BAD_FORMAT_DATE,
+      ]
+      
+      for issue_type in checks_to_run:
+          # Формируем имя метода: IssueType.BAD_FORMAT_DATE -> "_check_bad_format_date"
+          method_name = f"_check_{issue_type.method_name}"
+          # Получаем сам метод у текущего объекта (self)
+          try:
+              check_method = getattr(self, method_name)
+          except AttributeError:
+              raise NotImplementedError(
+                  f"Ошибка архитектуры: в пайплайне включено правило '{issue_type.name}', "
+                  f"но метод '{method_name}' не реализован в классе {self.__class__.__name__}."
+              )
+        
+          # Вызываем метод. Ожидаем, что он вернет Issue или None
+          issue = check_method(df)
+          if issue is not None:
+              issues.append(issue)
+              
+      return Report(total_rows=len(df), issues=issues)
+
+#пример реализации метода проверки
+def _check_bad_format_date(self, df: pd.DataFrame) -> Optional[Issue]:
+    """Проверяет колонку event_ts на битые даты."""
+    parsed = pd.to_datetime(df['event_ts'], errors='coerce')
+    mask = parsed.isna() & df['event_ts'].notna() & (df['event_ts'] != "")
+    count = int(mask.sum())
+    
+    if count > 0:
+        return Issue(
+            issue_type=IssueType.BAD_FORMAT_DATE,
+            column="event_ts",
+            rows_affected=count
+        )
+    return None
