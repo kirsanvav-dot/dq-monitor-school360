@@ -1,4 +1,4 @@
-"""Общие фикстуры для тестов."""
+"""Общие фикстуры для тестов команды."""
 from datetime import datetime, timedelta
 
 import pandas as pd
@@ -7,14 +7,14 @@ import pytest
 
 @pytest.fixture
 def small_clean_df() -> pd.DataFrame:
-    """10 строк чистых корректных событий — базовая фикстура для unit-тестов."""
+    """10 строк чистых корректных событий — базовая фикстура."""
     base_ts = datetime(2025, 3, 1, 12, 0, 0)
     rows = []
     for i in range(10):
         is_txn = i % 2 == 0
         rows.append({
             "event_id": f"evt_{i:04d}",
-            "client_id": f"C{i % 5:06d}",  # 5 уникальных клиентов
+            "client_id": f"C{i % 5:06d}",
             "event_type": "transaction" if is_txn else "session",
             "event_ts": (base_ts + timedelta(minutes=i)).strftime("%Y-%m-%d %H:%M:%S"),
             "device_type": "mobile",
@@ -41,12 +41,8 @@ def small_clean_df() -> pd.DataFrame:
 def small_dirty_df(small_clean_df) -> pd.DataFrame:
     """Чистый датасет + точечные DQ-проблемы для проверки детекторов."""
     df = small_clean_df.copy()
-    # Один пропуск client_id
-    df.loc[0, "client_id"] = None
-    # Один битый IP
-    df.loc[1, "ip_address"] = "999.999.999.999"
-    # Опечатка в currency
-    df.loc[2, "currency"] = "rub"
-    # Один дубликат
-    df = pd.concat([df, df.iloc[3:4]], ignore_index=True)
+    df.loc[0, "client_id"] = None            # 1 пропуск client_id
+    df.loc[1, "ip_address"] = "999.999.999.999"  # 1 битый IP
+    df.loc[2, "currency"] = "rub"            # 1 опечатка в currency
+    df = pd.concat([df, df.iloc[3:4]], ignore_index=True)  # 1 дубликат
     return df

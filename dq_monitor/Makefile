@@ -1,4 +1,13 @@
-.PHONY: install test run docker-build docker-run clean
+.PHONY: install test run docker-build docker-run clean help
+
+help:
+	@echo "Доступные команды:"
+	@echo "  make install      — установить Python-зависимости"
+	@echo "  make test         — прогнать pytest"
+	@echo "  make run          — запустить Streamlit локально (http://localhost:8501)"
+	@echo "  make docker-build — собрать Docker-образ"
+	@echo "  make docker-run   — запустить контейнер (http://localhost:8501)"
+	@echo "  make clean        — почистить кеш Python и pytest"
 
 install:
 	pip install -r requirements.txt

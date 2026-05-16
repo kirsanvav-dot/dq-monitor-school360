@@ -1,17 +1,17 @@
 """
-DQ Monitor — главная страница.
+DQ Monitor — главная страница (Upload).
 
 Streamlit multipage app. Файлы в app/pages/ автоматически становятся
-страницами в боковом меню.
+отдельными страницами в боковом меню.
 
-Состояние между страницами держим в st.session_state.
+Состояние между страницами передаётся через st.session_state.
 """
 from __future__ import annotations
 
 import sys
 from pathlib import Path
 
-# Делаем src/ доступным для импорта при запуске `streamlit run app/streamlit_app.py`
+# Делаем src/ доступным для импорта при запуске streamlit run app/streamlit_app.py
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import streamlit as st
@@ -32,11 +32,11 @@ st.markdown("""
 на способность системы ловить фрод.
 
 **Пайплайн приложения:**
+
 1. **Upload** (эта страница) — загрузить CSV с событиями
 2. **DQ Report** — найти проблемы качества по 4 измерениям
 3. **Cleaning** — очистить данные, сравнить score «до/после»
-4. **Antifraud Demo** — прогнать правила на грязных и чистых данных,
-   сравнить confusion matrix
+4. **Antifraud Demo** — прогнать правила на грязных и чистых, сравнить confusion matrix
 5. **Recommendations** — бизнес-рекомендации дата-инженерам банка
 """)
 
@@ -51,7 +51,7 @@ uploaded = st.file_uploader(
     help="Файл должен соответствовать схеме EVENTS_REQUIRED_COLUMNS",
 )
 
-# Альтернатива — загрузка из файла на диске (для разработки)
+# Альтернатива — загрузка из файла на диске (удобно для разработки)
 with st.expander("Или загрузить из локального файла"):
     default_path = Path("data/raw/events_dirty.csv")
     local_path = st.text_input("Путь", value=str(default_path))

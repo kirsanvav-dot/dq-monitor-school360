@@ -1,9 +1,15 @@
 """
-Метрики качества обнаружения фрода.
+Метрики качества обнаружения фрода. Этот модуль вам УЖЕ дан готовым —
+математика confusion matrix должна быть одинаковой у всех, чтобы цифры
+на защите были корректные.
 
-Сравниваем предсказания антифрод-правил с ground truth и считаем
-classic confusion matrix + производные. Это и есть ядро нарратива
-защиты: «грязные данные = больше FN, чистые = больше TP».
+Используйте отсюда:
+  compute_confusion_matrix(predictions, labels) -> ConfusionMatrix
+  attach_ground_truth(df_predicted, fraud_labels)  -> df с is_fraud_real
+  compare(cm_dirty, cm_clean)                       -> dict со сравнением
+
+Изучите код как образец dataclass'ов — это удобный паттерн для других
+ваших модулей.
 """
 from __future__ import annotations
 
@@ -18,10 +24,10 @@ class ConfusionMatrix:
     """Confusion matrix + производные метрики.
 
     Attributes:
-        tp: True Positive — правило сработало, и это правда фрод.
-        fp: False Positive — правило сработало, но это не фрод.
-        fn: False Negative — правило не сработало, а это был фрод. (пропустили)
-        tn: True Negative — правило не сработало, и это не фрод.
+        tp: True Positive  — правило сработало, и это правда фрод.
+        fp: False Positive — правило сработало, но это не фрод (ложная тревога).
+        fn: False Negative — правило не сработало, а это был фрод (пропустили).
+        tn: True Negative  — правило не сработало, и это не фрод.
     """
     tp: int
     fp: int
@@ -30,13 +36,13 @@ class ConfusionMatrix:
 
     @property
     def precision(self) -> float:
-        """Из тех, кого правило отметило — сколько действительно фрод."""
+        """Из тех, кого правило отметило — какая доля действительно фрод."""
         denom = self.tp + self.fp
         return self.tp / denom if denom else 0.0
 
     @property
     def recall(self) -> float:
-        """Из всего реального фрода — сколько правило поймало."""
+        """Из всего реального фрода — какую долю правило поймало."""
         denom = self.tp + self.fn
         return self.tp / denom if denom else 0.0
 
@@ -48,7 +54,7 @@ class ConfusionMatrix:
 
     @property
     def accuracy(self) -> float:
-        """Доля правильных предсказаний. Бесполезна на дисбалансе классов."""
+        """Доля правильных предсказаний. На дисбалансе классов бесполезна."""
         total = self.tp + self.fp + self.fn + self.tn
         return (self.tp + self.tn) / total if total else 0.0
 
@@ -83,15 +89,12 @@ def compute_confusion_matrix(
         raise ValueError(
             f"Длины не совпадают: predictions={len(predictions)}, labels={len(labels)}"
         )
-
     pred = pd.Series(predictions).fillna(False).astype(bool)
     real = pd.Series(labels).fillna(False).astype(bool)
-
     tp = int((pred & real).sum())
     fp = int((pred & ~real).sum())
     fn = int((~pred & real).sum())
     tn = int((~pred & ~real).sum())
-
     return ConfusionMatrix(tp=tp, fp=fp, fn=fn, tn=tn)
 
 
@@ -102,7 +105,7 @@ def attach_ground_truth(
     """Приклеить ground truth к предсказаниям по event_id.
 
     Если event_id в предсказаниях нет в labels (например, очистка
-    удалила строки), считаем такие случаи как is_fraud_real=False.
+    удалила строку), считаем is_fraud_real=False.
     """
     merged = df_with_predictions.merge(fraud_labels, on="event_id", how="left")
     merged["is_fraud_real"] = merged["is_fraud_real"].fillna(False).astype(bool)
@@ -110,7 +113,7 @@ def attach_ground_truth(
 
 
 def compare(before: ConfusionMatrix, after: ConfusionMatrix) -> dict:
-    """Сформировать структуру сравнения «грязные vs чистые» для UI и презентации.
+    """Сформировать структуру сравнения dirty vs clean для UI и слайдов.
 
     Возвращает разницу в абсолютных значениях и процентных пунктах —
     готовый материал для слайдов защиты.
