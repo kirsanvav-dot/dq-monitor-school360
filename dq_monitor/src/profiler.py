@@ -117,7 +117,49 @@ class DataProfiler():
     issues = []
     # Список обхода поиска ошибок
     checks_to_run: list[IssueType] = [
-        IssueType.BAD_FORMAT_DATE,
+        IssueType.EMPTY_EVENT_ID,
+        IssueType.EMPTY_CLIENT_ID,
+        IssueType.EMPTY_EVENT_TS,
+        IssueType.EMPTY_EVENT_TYPE,
+        IssueType.EMPTY_DEVICE_TYPE,
+        IssueType.EMPTY_GEO_COUNTRY,
+        IssueType.EMPTY_GEO_CITY,
+        IssueType.EMPTY_CHANNEL,
+        IssueType.EMPTY_AMOUNT_RUB,
+        IssueType.EMPTY_CURRENCY,
+        IssueType.EMPTY_MERCHANT_CATEGORY,
+        IssueType.EMPTY_MERCHANT_COUNTRY,
+        IssueType.EMPTY_CARD_LAST4,
+        IssueType.EMPTY_SESSION_START,
+        IssueType.EMPTY_SESSION_END,
+        IssueType.EMPTY_LOGIN_SUCCESS,
+        IssueType.EMPTY_AUTH_METHOD,
+        IssueType.EMPTY_FLAG_REASON,
+        IssueType.EMPTY_STRING,
+
+        # Validity
+        IssueType.INVALID_DATE,
+        IssueType.INVALID_FUTURE_DATE,
+        IssueType.INVALID_IP_ADDRESS,
+        IssueType.INVALID_CURRENCY,
+        IssueType.NEGATIVE_AMOUNT,
+        IssueType.ANOMALOUS_AMOUNT,
+        IssueType.INVALID_EVENT_TYPE,
+        IssueType.INVALID_DEVICE_TYPE,
+        IssueType.INVALID_AUTH_METHOD,
+        IssueType.NUMERIC_MERCHANT_CATEGORY,
+        IssueType.INVALID_CARD_FORMAT,
+
+        # Consistency
+        IssueType.INCONSISTENT_FLAG,
+        IssueType.MISSING_FLAG_REASON_WHEN_FLAGGED,
+        IssueType.TRANSACTION_HAS_SESSION_FIELDS,
+        IssueType.SESSION_HAS_TRANSACTION_FIELDS,
+        IssueType.INVALID_SESSION_TIMESTAMP,
+
+        # Uniqueness
+        IssueType.DUPLICATE_EVENT_ID,
+        IssueType.DUPLICATE_FULL_ROW,
     ]
     
     for issue_type in checks_to_run:
@@ -138,6 +180,11 @@ class DataProfiler():
             issues.append(issue)
             
     return Report(total_rows=len(df), issues=issues)
+
+
+  def _check_empty_event_id(self, df: pd.DataFrame):
+      mask = (df['event_id'].isnull()) or (df['event_id'] == "")
+
 
 #пример реализации метода проверки
   def _check_bad_format_date(self, df: pd.DataFrame) -> Optional[DQIssue]:
