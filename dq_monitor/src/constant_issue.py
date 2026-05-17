@@ -10,6 +10,13 @@ class DQDimension(str, Enum):
     CONSISTENCY = "Consistency"
     UNIQUENESS = "Uniqueness"
 
+# Класс типов применяемых действий при очистке
+#TODO прописать их в константах
+class CleanType(str, Enum):
+  #TODO Определить четкий набор правил
+  EMPTY = "empty" #FIXME - временный флаг того, что правило не установлено, необходим тест,
+                  #что в наших данных нет такого флага либо вручную
+
 ALL = "all" #служебное определение для column, если нет четкого столбца
 
 class IssueType(Enum):
@@ -18,7 +25,9 @@ class IssueType(Enum):
     Значение (value) — это кортеж: (имя_для_метода, 
     описание_для_ui, 
     измерение,
-    колонка tuple (currency / ALL))
+    колонка tuple (currency / ALL)),
+    тип исправления
+
     """
 
     #Completeness
@@ -71,11 +80,14 @@ class IssueType(Enum):
     @property
     def dimension(self) -> DQDimension:
         """Тип измерения качества."""
-        return self.value[2]
+        return self.value[2].value
     
     @property
     def column(self) -> tuple:
         """В какой колонке найдено ("currency" / ALL)"""
         return self.value[3]
 
+    @property
+    def clean_type(self) -> CleanType:
+        return self.value[4].value
 #TODO сами типы определяются DQ

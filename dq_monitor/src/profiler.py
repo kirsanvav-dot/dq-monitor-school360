@@ -103,7 +103,7 @@ class Report:
             
         df = pd.DataFrame([
             {
-                "dimension": issue.issue_type.dimension.value, # .value чтобы получить строку, а не Enum
+                "dimension": issue.issue_type.dimension,
                 "issue_type": issue.issue_type.name,  
                 "column": str(issue.issue_type.column), # tuple лучше привести к строке
                 "description": issue.issue_type.description,

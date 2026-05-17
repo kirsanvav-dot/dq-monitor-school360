@@ -62,3 +62,13 @@
 
 Спроектируйте API так, чтобы получить именно такой вызов.
 """
+from enum import Enum
+from dataclasses import dataclass, field
+from typing import List, Tuple
+import pandas as pd
+from src.constant_issue import IssueType
+
+@dataclass
+class ClIssue:
+  issue_type: IssueType       # Берем из constant_issue.py (например, EMPTY_CLIENT_ID)
+  rows_affected: int          # Сколько строк было затронуто очисткой
