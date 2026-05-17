@@ -39,9 +39,56 @@ score < 0. Что делать? Варианты:
 completeness, validity, consistency, uniqueness и свойство total.
 """
 import pandas as pd
+from typing import Set, List
 from dataclasses import dataclass
 from src.profiler import Report
+from constant_issue import IssueType
 
+
+ISSUE_COMPLETENESS = [IssueType.EMPTY_EVENT_ID,
+        IssueType.EMPTY_CLIENT_ID,
+        IssueType.EMPTY_EVENT_TS,
+        IssueType.EMPTY_EVENT_TYPE,
+        IssueType.EMPTY_DEVICE_TYPE,
+        IssueType.EMPTY_GEO_COUNTRY,
+        IssueType.EMPTY_GEO_CITY,
+        IssueType.EMPTY_CHANNEL,
+        IssueType.EMPTY_AMOUNT_RUB,
+        IssueType.EMPTY_CURRENCY,
+        IssueType.EMPTY_MERCHANT_CATEGORY,
+        IssueType.EMPTY_MERCHANT_COUNTRY,
+        IssueType.EMPTY_CARD_LAST4,
+        IssueType.EMPTY_SESSION_START,
+        IssueType.EMPTY_SESSION_END,
+        IssueType.EMPTY_LOGIN_SUCCESS,
+        IssueType.EMPTY_AUTH_METHOD,
+        IssueType.EMPTY_FLAG_REASON,
+        IssueType.EMPTY_STRING,]
+
+ISSUE_VALIDITY  = [
+    IssueType.INVALID_DATE,
+    IssueType.INVALID_FUTURE_DATE,
+    IssueType.INVALID_IP_ADDRESS,
+    IssueType.INVALID_CURRENCY,
+    IssueType.NEGATIVE_AMOUNT,
+    IssueType.ANOMALOUS_AMOUNT,
+    IssueType.INVALID_EVENT_TYPE,
+    IssueType.INVALID_DEVICE_TYPE,
+    IssueType.INVALID_AUTH_METHOD,
+    IssueType.NUMERIC_MERCHANT_CATEGORY,
+    IssueType.INVALID_CARD_FORMAT,
+]
+ISSUE_CONSISTENCY = [
+    IssueType.INCONSISTENT_FLAG,
+    IssueType.MISSING_FLAG_REASON_WHEN_FLAGGED,
+    IssueType.TRANSACTION_HAS_SESSION_FIELDS,
+    IssueType.SESSION_HAS_TRANSACTION_FIELDS,
+    IssueType.INVALID_SESSION_TIMESTAMP,
+]
+ISSUE_UNIQUENESS = [
+    IssueType.DUPLICATE_EVENT_ID,
+    IssueType.DUPLICATE_FULL_ROW,
+]
 @dataclass
 class DQScore:
     completeness: float
@@ -59,6 +106,54 @@ class DQScore:
             "uniqueness": self.uniqueness
         }
 
+def get_unique_affected_rows(issues: list, issue_types: List[IssueType]):
+    affected_rows = set()
+    for issue in issues:
+        if issue.issue_type in issue_types:
+            affected_rows.add(issue.affected_indices.tolist())
+    return affected_rows
+
+def calculate_dimension_score(total_rows: int, issues: list, issue_types: List[IssueType]):
+    if total_rows == 0:
+        return 1.0
+    affected_rows = get_unique_affected_rows(issues, issue_types)
+    problems_count = len(affected_rows)
+    score = 1 - (problems_count / total_rows)
+    return score, affected_rows
+
+def calculate_uniqueness_score(total_rows: int, issues: list, issue_types: List[IssueType], df:pd.DataFrame):
+    if total_rows == 0:
+        return 1.0
+    duplicate_indices = get_unique_affected_rows(issues, issue_types)
+    if not duplicate_indices:
+        return 1.0
+    dup_df = df.lock[list(duplicate_indices)]
+    unique_combinations = dup_df.drop_duplicates()
+    excess_count = len(dup_df) - len(unique_combinations)
+    score = 1 - (excess_count / total_rows)
+    return score, duplicate_indices
 
 def compute_dq_score(df: pd.DataFrame, report: Report) -> DQScore:
-    pass
+    total_rows = len(df)
+    if total_rows == 0:
+        return DQScore(
+            completeness=1.0,
+            validity=1.0,
+            consistency=1.0,
+            uniqueness=1.0,
+            total=1.0
+        )
+    issues = report.issues
+    completeness_score, completeness_set = calculate_dimension_score(total_rows, issues, ISSUE_COMPLETENESS)
+    validity_score, validity_set = calculate_dimension_score(total_rows, issues, ISSUE_VALIDITY)
+    consistency_score, consistency_set = calculate_dimension_score(total_rows, issues, ISSUE_CONSISTENCY)
+    uniqueness_score, uniqueness_set = calculate_uniqueness_score(total_rows, issues, ISSUE_UNIQUENESS, df)
+    total_set = consistency_set | validity_set | completeness_set | uniqueness_set
+    total_score = 1 - (len(total_set) / total_rows)
+    return DQScore(
+        completeness=completeness_score,
+        validity=validity_score,
+        consistency=consistency_score,
+        uniqueness=uniqueness_score,
+        total=total_score
+    )

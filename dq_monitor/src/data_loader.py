@@ -101,3 +101,4 @@ def get_summary(df: pd.DataFrame) -> dict:
         "unique_clients": df["client_id"].nunique(dropna=True),
         "memory_mb": round(df.memory_usage(deep=True).sum() / 1024 / 1024, 1),
     }
+
