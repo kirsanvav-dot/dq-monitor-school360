@@ -66,7 +66,7 @@ from typing import Optional, List
 from dataclasses import dataclass, field
 from src.constant_issue import IssueType, DQDimension
 import pandas as pd
-import reference_data as ref
+import src.reference_data as ref
 import re
 
 
@@ -192,8 +192,6 @@ class DataProfiler():
 
 #Completness
   def _check_empty_event_id(self, df: pd.DataFrame) -> Optional[DQIssue]:
-      if 'event_id' not in df.columns:
-          return None
       mask = (df['event_id'].isnull()) | (df['event_id'] == "")
       bad_index = df[mask].index
       if len(bad_index) > 0:
@@ -204,8 +202,6 @@ class DataProfiler():
       return None
 
   def _check_empty_client_id(self, df: pd.DataFrame) -> Optional[DQIssue]:
-      if 'client_id' not in df.columns:
-          return None
       mask = (df['client_id'].isnull()) | (df['client_id'] == "")
       bad_index = df[mask].index
       if len(bad_index) > 0:
@@ -216,8 +212,6 @@ class DataProfiler():
       return None
 
   def _check_empty_event_ts(self, df: pd.DataFrame) -> Optional[DQIssue]:
-      if 'event_ts' not in df.columns:
-          return None
       mask = (df['event_ts'].isnull()) | (df['event_ts'] == "")
       bad_index = df[mask].index
       if len(bad_index) > 0:
@@ -228,61 +222,51 @@ class DataProfiler():
       return None
 
   def _check_empty_device_type(self, df: pd.DataFrame) -> Optional[DQIssue]:
-      if 'device_type' not in df.columns:
-          return None
       mask = (df['device_type'].isnull()) | (df['device_type'] == "")
       bad_index = df[mask].index
       if len(bad_index) > 0:
           return DQIssue(
-              issue_type=IssueType.EMPTY_EVENT_TS,
+              issue_type=IssueType.EMPTY_DEVICE_TYPE,
               affected_indices=bad_index,
           )
       return None
 
   def _check_empty_geo_city(self, df: pd.DataFrame) -> Optional[DQIssue]:
-      if 'geo_city' not in df.columns:
-          return None
       mask = (df['geo_city'].isnull()) | (df['geo_city'] == "")
       bad_index = df[mask].index
       if len(bad_index) > 0:
           return DQIssue(
-              issue_type=IssueType.EMPTY_EVENT_TS,
+              issue_type=IssueType.EMPTY_GEO_CITY,
               affected_indices=bad_index,
           )
       return None
 
   def _check_empty_amount_rub(self, df: pd.DataFrame) -> Optional[DQIssue]:
-      if 'amount_rub' not in df.columns or 'event_type' not in df.columns:
-          return None
       mask = ((df['amount_rub'].isnull()) | (df['amount_rub'] == "")) & (df['event_type'] == "transaction")
       bad_index = df[mask].index
       if len(bad_index) > 0:
           return DQIssue(
-              issue_type=IssueType.EMPTY_EVENT_TS,
+              issue_type=IssueType.EMPTY_AMOUNT_RUB,
               affected_indices=bad_index,
           )
       return None
 
   def _check_empty_currency(self, df: pd.DataFrame) -> Optional[DQIssue]:
-      if 'currency' not in df.columns or 'event_type' not in df.columns:
-          return None
       mask = ((df['currency'].isnull()) | (df['currency'] == "")) & (df['event_type'] == "transaction")
       bad_index = df[mask].index
       if len(bad_index) > 0:
           return DQIssue(
-              issue_type=IssueType.EMPTY_EVENT_TS,
+              issue_type=IssueType.EMPTY_EMPTY_CURRENCY,
               affected_indices=bad_index,
           )
       return None
 
   def _check_empty_flag_reason(self, df: pd.DataFrame) -> Optional[DQIssue]:
-      if 'flag_reason' not in df.columns:
-          return None
       mask = (df['flag_reason'].isnull()) | (df['flag_reason'] == "")
       bad_index = df[mask].index
       if len(bad_index) > 0:
           return DQIssue(
-              issue_type=IssueType.EMPTY_EVENT_TS,
+              issue_type=IssueType.EMPTY_FLAG_REASON,
               affected_indices=bad_index,
           )
       return None
@@ -290,8 +274,6 @@ class DataProfiler():
 
     #Validity
   def _check_invalid_format_date(self, df: pd.DataFrame) -> Optional[DQIssue]:
-    if 'event_ts' not in df.columns:
-        return None
     parsed = pd.to_datetime(df['event_ts'], errors='coerce')
     mask = parsed.isna() & df['event_ts'].notna() & (df['event_ts'].astype(str).str.strip() != "")
     bad_index = df[mask].index
@@ -303,8 +285,6 @@ class DataProfiler():
     return None
 
   def _check_invalid_ip_address(self, df: pd.DataFrame) -> Optional[DQIssue]:
-    if 'ip_address' not in df.columns:
-            return None
     ipv4_pattern = re.compile(r'^(\d{1,3}\.){3}\d{1,3}$')
     ip_series = df['ip_address'].copy()
     is_empty = (ip_series.isna()) | (ip_series.astype(str).str.strip() == "")
@@ -327,8 +307,6 @@ class DataProfiler():
     return None
 
   def _check_invalid_amount_rub(self, df: pd.DataFrame) -> Optional[DQIssue]:
-    if 'amount_rub' not in df.columns:
-        return None
     is_empty = (df['amount_rub'].isna()) | (df['amount_rub'] == "")
     mask = ~(is_empty) & (df['amount_rub'] < 0 | df['amount_rub'] > 10_000_000)
     bad_indices = df.index[mask]
@@ -340,8 +318,6 @@ class DataProfiler():
     return None
 
   def _check_invalid_currency(self, df: pd.DataFrame) -> Optional[DQIssue]:
-    if 'currency' not in df.columns:
-        return None
     is_empty = (df['currency'].isna()) | (df['currency'] == "")
     mask = ~(is_empty) & ~(df['currency'].astype(str).isin(ref.VALID_CURRENCIES))
     bad_indices = df.index[mask]
@@ -353,8 +329,6 @@ class DataProfiler():
     return None
 
   def _check_invalid_merchant_category(self, df: pd.DataFrame) -> Optional[DQIssue]:
-    if 'merchant_category' not in df.columns:
-        return None
     is_empty = (df['merchant_category'].isna()) | (df['merchant_category'] == "")
     mask = ~(is_empty) & ~(df['merchant_category'].astype(str).isin(ref.VALID_MERCHANT_CATEGORIES))
     bad_indices = df.index[mask]
@@ -366,8 +340,6 @@ class DataProfiler():
     return None
 
   def _check_invalid_device_type(self, df: pd.DataFrame) -> Optional[DQIssue]:
-    if 'device_type' not in df.columns:
-        return None
     is_empty = (df['device_type'].isna()) | (df['device_type'] == "")
     mask = ~(is_empty) & ~(df['device_type'].astype(str).isin(ref.VALID_DEVICE_TYPES))
     bad_indices = df.index[mask]
@@ -379,8 +351,6 @@ class DataProfiler():
     return None
 
   def _check_invalid_card_last4(self, df: pd.DataFrame) -> Optional[DQIssue]:
-    if 'card_last4' not in df.columns:
-        return None
     is_empty = (df['card_last4'].isna()) | (df['card_last4'] == "")
     mask = ~(is_empty) & ~df['card_last4'].astype(str).str.match(r'^\d{4}$')
     bad_indices = df.index[mask]
@@ -393,10 +363,8 @@ class DataProfiler():
 
   # CONSISTENCY
   def _check_inconsistency_flagged_field(self, df: pd.DataFrame) -> Optional[DQIssue]:
-    if 'is_flagged' not in df.columns or 'flag_reason' not in df.columns:
-        return None
     is_empty = (df['flag_reason'].isna()) | (df['flag_reason'] == "")
-    mask = df['flag_reason'] == False and ~is_empty
+    mask = (df['is_flagged'] == False) and ~is_empty
     bad_indices = df.index[mask]
     if len(bad_indices) > 0:
         return DQIssue(
@@ -436,7 +404,7 @@ class DataProfiler():
         bad_indices = df.index[mask]
         if len(bad_indices) > 0:
             return DQIssue(
-                issue_type=IssueType.SESSION_HAS_TRANSACTION_FIELDS,
+                issue_type=IssueType.INCONSISTENCY_SESSION,
                 affected_indices=bad_indices)
         return None
 
@@ -445,7 +413,7 @@ class DataProfiler():
       duplicated_mask = df.duplicated(keep=False)
       bad_indices = df.index[duplicated_mask]
       if len(bad_indices) > 0:
-          return DQIssue(issue_type=IssueType.DUPLICATE_FULL_ROW, affected_indices=bad_indices)
+          return DQIssue(issue_type=IssueType.DUPLICATE_FULL, affected_indices=bad_indices)
       return None
 
   def _check_event_id_duplicate(self, df: pd.DataFrame) -> Optional[DQIssue]:
@@ -462,5 +430,5 @@ class DataProfiler():
       mask = df['event_id'].isin(duplicated_ids) & ~full_duplicates_mask
       bad_indices = df.index[mask]
       if len(bad_indices) > 0:
-          return DQIssue(issue_type=IssueType.DUPLICATE_FULL_ROW, affected_indices=bad_indices)
+          return DQIssue(issue_type=IssueType.DUPLICATE_EVENT_ID, affected_indices=bad_indices)
       return None
