@@ -127,6 +127,21 @@ class BaseRule(ABC):
     def as_dict(self):
         return {'rule_id':self.rule_id, 'name':self.name, 'triggered_count':self.triggered_count}
 
+class CarouselRule(BaseRule):
+    def __init__(self):
+      self.rule_id: str = "R3"
+      self.name: str = "Carousel"
+      self.description: str = "Detects large counts of events"
+      self.triggered_count: int = 0
+    
+    def use_rule(self, df: pd.DataFrame) -> "pd.Series[bool]":
+      is_data = pd.to_datetime(df['event_ts'], errors='coerce').notna()
+      filtred_df = df[df['client_id'].notna & is_data]
+      filtred_df = filtred_df.sort_values('event_ts')
+      
+      filtred_df.reset_index().set_index('event_ts').rolling('10min').count()
+
+
 class NightWithdrawalRule(BaseRule):
     """
     Правило по опасным ночным транзакциям.
@@ -150,7 +165,8 @@ class NightWithdrawalRule(BaseRule):
 
 class RiscedCategoryRule(BaseRule):
     """
-
+    Правило по опасным категориям.
+    Опасными категориями считаются crypto_exchange, gambling, wire_transfer_abroad
     """
     def __init__(self):
       self.rule_id: str = "R3"
@@ -207,5 +223,5 @@ df = load_events('dq_monitor/data/raw/events_dirty.csv')
 engine = RuleEngine()
 ans1,ans2 = engine.run_all(df)
 
-print(ans1.loc[145])
+print(ans1.head())
 print(ans2)
