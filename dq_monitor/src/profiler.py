@@ -96,24 +96,24 @@ class Report:
       for issue in self.issues:
           summary[issue.dimension.value] += 1
       return summary
+  
   def to_dataframe(self) -> pd.DataFrame:
-      if not self.issues:
-          return pd.DataFrame(columns=["Измерение", "Тип", "Колонка", "Описание", "Затронуто строк", "% от всех строк"])
-          
-      df = pd.DataFrame([
-          {
-              "Измерение": issue.issue_type.dimension,
-              "Тип": issue.issue_type.name,  
-              "Колонка": issue.issue_type.column,
-              "Описание": issue.issue_type.description,
-              "Затронуто строк": issue.rows_affected,
-              "% от всех строк": round((issue.rows_affected / self.total_rows) * 100, 2) if self.total_rows > 0 else 0
-          }
-          for issue in self.issues
-      ])
-      
-      # Группируем (сортируем) проблемы по измерениям для удобного отображения в UI
-      return df.sort_values(by=["Измерение", "Затронуто строк"], ascending=[True, False]).reset_index(drop=True)
+        if not self.issues:
+            return pd.DataFrame(columns=["dimension", "issue_type", "column", "description", "rows_affected", "percent_affected"])
+            
+        df = pd.DataFrame([
+            {
+                "dimension": issue.issue_type.dimension.value, # .value чтобы получить строку, а не Enum
+                "issue_type": issue.issue_type.name,  
+                "column": str(issue.issue_type.column), # tuple лучше привести к строке
+                "description": issue.issue_type.description,
+                "rows_affected": issue.rows_affected,
+                "percent_affected": round((issue.rows_affected / self.total_rows) * 100, 2) if self.total_rows > 0 else 0
+            }
+            for issue in self.issues
+        ])
+        
+        return df.sort_values(by=["dimension", "rows_affected"], ascending=[True, False]).reset_index(drop=True)
 
 #TODO Основная идея архитектуры:
 #DQ реализует только сами  issue в виде констант и функций
