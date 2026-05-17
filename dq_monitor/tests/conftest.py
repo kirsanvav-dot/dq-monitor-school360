@@ -46,3 +46,11 @@ def small_dirty_df(small_clean_df) -> pd.DataFrame:
     df.loc[2, "currency"] = "rub"            # 1 опечатка в currency
     df = pd.concat([df, df.iloc[3:4]], ignore_index=True)  # 1 дубликат
     return df
+
+import sys
+
+@pytest.fixture
+def medium_clean_df() -> pd.DataFrame:
+    """Чистый средний датасет из реальных данных."""
+    df = pd.read_csv("dq_monitor/data/raw/events_clean.csv")
+    return df
