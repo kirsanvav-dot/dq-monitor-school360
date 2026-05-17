@@ -10,13 +10,18 @@ class DQDimension(str, Enum):
     CONSISTENCY = "Consistency"
     UNIQUENESS = "Uniqueness"
 
+ALL = "all" #служебное определение для column, если нет четкого столбца
+
 class IssueType(Enum):
     """
     Класс констант типов ошибок.
-    Значение (value) — это кортеж: (имя_для_метода, описание_для_ui, измерение)
+    Значение (value) — это кортеж: (имя_для_метода, 
+    описание_для_ui, 
+    измерение,
+    колонка (currency / ALL))
     """
     # Пример создания:
-    BAD_FORMAT_DATE = ("bad_format_date", "Неверный формат данных времени", DQDimension.VALIDITY)
+    BAD_FORMAT_DATE = ("bad_format_date", "Неверный формат данных времени", DQDimension.VALIDITY, "event_ts")
 
     @property
     def method_name(self) -> str:
@@ -32,5 +37,10 @@ class IssueType(Enum):
     def dimension(self) -> DQDimension:
         """Тип измерения качества."""
         return self.value[2]
+    
+    @property
+    def column(self) -> str:
+        """В какой колонке найдено ("currency" / ALL)"""
+        return self.value[3]
 
 #TODO сами типы определяются DQ

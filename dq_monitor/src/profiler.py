@@ -67,13 +67,11 @@ from dataclasses import dataclass
 from src.constant_issue import IssueType, DQDimension
 import pandas as pd
 
-ALL = "all" #служебное определение для column, если нет четкого столбца
 
 #Датакласс для одной ошибки
 @dataclass
 class DQIssue:
     issue_type: IssueType
-    column: str          # В какой колонке найдено ("currency" / ALL)
     rows_affected: int   # Количество затронутых строк
     
     @property
@@ -106,10 +104,10 @@ class Report:
           
       df = pd.DataFrame([
           {
-              "Измерение": issue.dimension.value,
+              "Измерение": issue.issue_type.dimension,
               "Тип": issue.issue_type.name,  
-              "Колонка": issue.column,
-              "Описание": issue.description,
+              "Колонка": issue.issue_type.column,
+              "Описание": issue.issue_type.description,
               "Затронуто строк": issue.rows_affected,
               "% от всех строк": round((issue.rows_affected / self.total_rows) * 100, 2) if self.total_rows > 0 else 0
           }
