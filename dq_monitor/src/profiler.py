@@ -74,13 +74,12 @@ import re
 @dataclass
 class DQIssue:
     issue_type: IssueType
-    rows_affected: int   # Количество затронутых строк
     affected_indices: pd.Index = field(default_factory=lambda: pd.Index([]))
 
-@property
-def rows_affected(self) -> int:
-    """Количество затронутых строк вычисляется автоматически по длине индексов."""
-    return len(self.affected_indices)
+    @property
+    def rows_affected(self) -> int:
+        """Количество затронутых строк вычисляется автоматически по длине индексов."""
+        return len(self.affected_indices)
 
 @dataclass
 class Report:
@@ -256,7 +255,7 @@ class DataProfiler():
       bad_index = df[mask].index
       if len(bad_index) > 0:
           return DQIssue(
-              issue_type=IssueType.EMPTY_EMPTY_CURRENCY,
+              issue_type=IssueType.EMPTY_CURRENCY,
               affected_indices=bad_index,
           )
       return None
@@ -279,7 +278,7 @@ class DataProfiler():
     bad_index = df[mask].index
     if len(bad_index) > 0:
         return DQIssue(
-            issue_type=IssueType.EINVALID_FORMAT_DATE,
+            issue_type=IssueType.INVALID_FORMAT_DATE,
             affected_indices=bad_index,
         )
     return None
@@ -308,7 +307,7 @@ class DataProfiler():
 
   def _check_invalid_amount_rub(self, df: pd.DataFrame) -> Optional[DQIssue]:
     is_empty = (df['amount_rub'].isna()) | (df['amount_rub'] == "")
-    mask = ~(is_empty) & (df['amount_rub'] < 0 | df['amount_rub'] > 10_000_000)
+    mask = ~(is_empty) & ((df['amount_rub'] < 0) | (df['amount_rub'] > 10_000_000))
     bad_indices = df.index[mask]
     if len(bad_indices) > 0:
         return DQIssue(
@@ -364,7 +363,7 @@ class DataProfiler():
   # CONSISTENCY
   def _check_inconsistency_flagged_field(self, df: pd.DataFrame) -> Optional[DQIssue]:
     is_empty = (df['flag_reason'].isna()) | (df['flag_reason'] == "")
-    mask = (df['is_flagged'] == False) and ~is_empty
+    mask = (df['is_flagged'] == False) & ~is_empty
     bad_indices = df.index[mask]
     if len(bad_indices) > 0:
         return DQIssue(
