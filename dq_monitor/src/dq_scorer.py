@@ -38,3 +38,27 @@ score < 0. Что делать? Варианты:
 Проектируйте так, чтобы у возвращаемого объекта были атрибуты
 completeness, validity, consistency, uniqueness и свойство total.
 """
+import pandas as pd
+from dataclasses import dataclass
+from src.profiler import Report
+
+@dataclass
+class DQScore:
+    completeness: float
+    validity: float
+    consistency: float
+    uniqueness: float
+    total: float
+        
+    def to_dict(self) -> dict:
+        """Контракт для viz.py (plot_dq_score_radar)"""
+        return {
+            "completeness": self.completeness,
+            "validity": self.validity,
+            "consistency": self.consistency,
+            "uniqueness": self.uniqueness
+        }
+
+
+def compute_dq_score(df: pd.DataFrame, report: Report) -> DQScore:
+    pass
