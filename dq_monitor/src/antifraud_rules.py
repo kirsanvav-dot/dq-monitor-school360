@@ -122,7 +122,10 @@ class BaseRule(ABC):
         if count == 0:
             return []
         return df[mask].sample(min(n, count))["event_id"].to_list()
-
+    
+    @property
+    def as_dict(self):
+        return {'rule_id':self.rule_id, 'name':self.name, 'triggered_count':self.triggered_count}
 
 class NightWithdrawalRule(BaseRule):
     """
@@ -130,16 +133,79 @@ class NightWithdrawalRule(BaseRule):
     Опасными считаются транзакции, совершённые во время 01:00:00–03:59:59
     и на сумму больше 50 000.
     """
-    rule_id: str = "R2"
-    name: str = "night withdrawal"
-    description: str = "Detects large overnight transactions"
-    triggered_count: int = 0
+    def __init__(self):
+      self.rule_id: str = "R2"
+      self.name: str = "night withdrawal"
+      self.description: str = "Detects large overnight transactions"
+      self.triggered_count: int = 0
 
     def use_rule(self, df: pd.DataFrame) -> "pd.Series[bool]":
         column = pd.to_datetime(df['event_ts'], errors='coerce')
         is_night = column.dt.hour.between(1, 3)
-        is_large_sum = df['amount_rub'] > 50000
+        is_LargeSum = df['amount_rub'] > 50000
         is_transaction = df['event_type'] == 'transaction'
-        ans = is_night & is_large_sum & is_transaction
+        ans = is_night & is_LargeSum & is_transaction
         self.triggered_count = ans.sum()
         return ans
+
+class RiscedCategoryRule(BaseRule):
+    """
+
+    """
+    def __init__(self):
+      self.rule_id: str = "R3"
+      self.name: str = "risced category"
+      self.description: str = "Detects large risced category"
+      self.triggered_count: int = 0
+    
+    def use_rule(self, df: pd.DataFrame) -> "pd.Series[bool]":
+        is_RiscedCategory = df['merchant_category'].isin({'crypto_exchange', 'gambling', 'wire_transfer_abroad'})
+        is_LargeSum = df['amount_rub'] > 50000
+        ans = is_RiscedCategory & is_LargeSum
+        self.triggered_count = ans.sum()
+        return ans
+
+class RuleEngine():
+    """
+    Основной класс - движок для правил.
+    Выводит таблицу с дополнительным столбцами is_fraud_predicted и triggered_rules
+    и выводит информацию о задейственных правилах.
+    """
+    def run_all(self, df: pd.DataFrame) -> tuple[pd.DataFrame, list]:
+        rule2 = NightWithdrawalRule()
+        mask_rule2 = rule2.use_rule(df)
+        rule2_str = pd.Series('R2', index=mask_rule2.index).where(mask_rule2, '')
+        rule3 = RiscedCategoryRule()
+        mask_rule3 = rule3.use_rule(df)
+        rule3_str = pd.Series('R3', index=mask_rule3.index).where(mask_rule3, '')
+        mask = mask_rule2 | mask_rule3
+        triggered_rules = rule2_str + rule3_str
+        new_df = pd.concat([df, mask, triggered_rules], axis=1)
+        new_df.rename(columns={0:'is_fraud_predicted', 1:'triggered_rules'})
+        info_rules = [rule2.as_dict, rule3.as_dict]
+        return (new_df, info_rules)
+
+
+# экспериментирую
+from data_loader import load_events
+df = load_events('dq_monitor/data/raw/events_dirty.csv')
+# print(df['amount_rub'])
+
+# obj = df.loc[145:145]
+# print(obj)
+# print(obj['amount_rub'] > 50000, pd.to_datetime(obj['event_ts']).hour)
+# df = df[140:150]
+
+# rule2 = NightWithdrawalRule()
+# mask = rule2.use_rule(df)
+# print(mask)
+
+# print(rule2.triggered_count)
+# print(mask.iloc[145])
+
+
+engine = RuleEngine()
+ans1,ans2 = engine.run_all(df)
+
+print(ans1.loc[145])
+print(ans2)
