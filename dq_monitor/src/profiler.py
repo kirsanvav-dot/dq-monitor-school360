@@ -63,7 +63,7 @@
 Поэтому проектируйте публичный API именно под такое использование.
 """
 from typing import Optional, List
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from src.constant_issue import IssueType, DQDimension
 import pandas as pd
 
@@ -73,6 +73,12 @@ import pandas as pd
 class DQIssue:
     issue_type: IssueType
     rows_affected: int   # Количество затронутых строк
+    affected_indices: pd.Index = field(default_factory=lambda: pd.Index([]))
+
+@property
+def rows_affected(self) -> int:
+    """Количество затронутых строк вычисляется автоматически по длине индексов."""
+    return len(self.affected_indices)
 
 @dataclass
 class Report:
@@ -140,16 +146,18 @@ class DataProfiler():
     return Report(total_rows=len(df), issues=issues)
 
 #пример реализации метода проверки
-  def _check_bad_format_date(self, df: pd.DataFrame) -> Optional[DQIssue]:
-    """Проверяет колонку event_ts на битые даты."""
+def _check_bad_format_date(self, df: pd.DataFrame) -> Optional[DQIssue]:
     parsed = pd.to_datetime(df['event_ts'], errors='coerce')
     mask = parsed.isna() & df['event_ts'].notna() & (df['event_ts'] != "")
-    count = int(mask.sum())
+    
+    # Получаем индексы строк, где маска == True
+    bad_indices = df.index[mask]
+    count = len(bad_indices)
     
     if count > 0:
         return DQIssue(
             issue_type=IssueType.BAD_FORMAT_DATE,
             column="event_ts",
-            rows_affected=count
+            affected_indices=bad_indices  # Передаем индексы!
         )
     return None
