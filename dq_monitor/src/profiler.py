@@ -73,14 +73,6 @@ import pandas as pd
 class DQIssue:
     issue_type: IssueType
     rows_affected: int   # Количество затронутых строк
-    
-    @property
-    def dimension(self) -> DQDimension:
-        return self.issue_type.dimension
-        
-    @property
-    def description(self) -> str:
-        return self.issue_type.description
 
 @dataclass
 class Report:
