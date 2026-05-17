@@ -18,10 +18,10 @@ class IssueType(Enum):
     Значение (value) — это кортеж: (имя_для_метода, 
     описание_для_ui, 
     измерение,
-    колонка (currency / ALL))
+    колонка tuple (currency / ALL))
     """
     # Пример создания:
-    BAD_FORMAT_DATE = ("bad_format_date", "Неверный формат данных времени", DQDimension.VALIDITY, "event_ts")
+    BAD_FORMAT_DATE = ("bad_format_date", "Неверный формат данных времени", DQDimension.VALIDITY, ("event_ts",))
 
     @property
     def method_name(self) -> str:
@@ -39,7 +39,7 @@ class IssueType(Enum):
         return self.value[2]
     
     @property
-    def column(self) -> str:
+    def column(self) -> tuple:
         """В какой колонке найдено ("currency" / ALL)"""
         return self.value[3]
 
