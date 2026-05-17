@@ -1,1 +1,2 @@
-dq_monitor/data/events_dirty.csv filter=lfs diff=lfs merge=lfs -text
+events_dirty.csv filter=lfs diff=lfs merge=lfs -text
+events_clean.csv filter=lfs diff=lfs merge=lfs -text
