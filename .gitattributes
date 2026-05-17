@@ -1,1 +1,2 @@
 dq_monitor/data/raw/* filter=lfs diff=lfs merge=lfs -text
+dq_monitor/data/raw/events_clean.csv !filter !diff !merge text
