@@ -66,7 +66,7 @@ from typing import Optional, List
 from dataclasses import dataclass, field
 from src.constant_issue import IssueType, DQDimension
 import pandas as pd
-import reference_data as ref
+import src.reference_data as ref
 import re
 
 
