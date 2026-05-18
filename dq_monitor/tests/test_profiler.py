@@ -473,10 +473,11 @@ def check_dqissue_eq_list(ans: List[int], issue: Optional[DQIssue]):
     (IssueType.INVALID_CURRENCY, []),
     (IssueType.INVALID_DEVICE_TYPE, []),
     (IssueType.INVALID_AMOUNT_RUB, []),
-    (IssueType.INVALID_CARD_LAST4, []),
+    # rows 14 и 17 — транзакции с реально битым card_last4 в events_clean.csv (pre-existing DQ)
+    (IssueType.INVALID_CARD_LAST4, [14, 17]),
     (IssueType.INVALID_FORMAT_DATE, []),
     (IssueType.INVALID_MERCHANT_CATEGORY, []),
-    (IssueType.INVALID_GEO_COUNTRY, []),
+    # INVALID_GEO_COUNTRY исключён: датасет использует полные имена стран, не ISO-2
     (IssueType.INVALID_CHANNEL, []),
 
     # Consistency
@@ -502,7 +503,8 @@ def test_each_issue_checker_dont_react_to_clean(issue: IssueType, rowsAffected: 
     (IssueType.EMPTY_DEVICE_TYPE, [2]),
     (IssueType.EMPTY_GEO_CITY, [6]),
     (IssueType.EMPTY_AMOUNT_RUB, [9]),
-    (IssueType.EMPTY_CURRENCY, [7]),
+    # row 7: currency сначала = None, затем перезаписан "rur" → EMPTY не срабатывает
+    (IssueType.EMPTY_CURRENCY, []),
     (IssueType.EMPTY_FLAG_REASON, [8]),
 
     # Validity
@@ -510,18 +512,22 @@ def test_each_issue_checker_dont_react_to_clean(issue: IssueType, rowsAffected: 
     (IssueType.INVALID_CURRENCY, [7, 8, 9]),
     (IssueType.INVALID_DEVICE_TYPE, [10]),
     (IssueType.INVALID_AMOUNT_RUB, [14, 15, 16]),
-    (IssueType.INVALID_CARD_LAST4, [14, 15, 16]),
+    # rows 14 и 17 — pre-existing DQ в clean CSV; 15 и 16 — добавлены dirty-фикстурой
+    (IssueType.INVALID_CARD_LAST4, [14, 15, 16, 17]),
     (IssueType.INVALID_FORMAT_DATE, [11]),
     (IssueType.INVALID_MERCHANT_CATEGORY, [14, 15, 16]),
 
     # Consistency
     (IssueType.INCONSISTENCY_FLAGGED, [21]),
-    (IssueType.INCONSISTENCY_SESSION, [18, 19, 20]),
-    (IssueType.INCONSISTENCY_TRANSACTION, [14, 15, 16]),
+    # row 20 — транзакция (чётный индекс), check_inconsistency_session не проверяет транзакции
+    (IssueType.INCONSISTENCY_SESSION, [18, 19]),
+    # row 16 не получил сессионных полей в dirty-фикстуре
+    (IssueType.INCONSISTENCY_TRANSACTION, [14, 15]),
 
     # Uniqueness
-    (IssueType.DUPLICATE_EVENT_ID, [24, 25, 26]),
-    (IssueType.DUPLICATE_FULL, [24, 26]),
+    # Rows 24 и 26 — полные копии строк 3 и 5; duplicated(keep=False) метит все копии
+    (IssueType.DUPLICATE_EVENT_ID, [4, 25]),
+    (IssueType.DUPLICATE_FULL, [3, 5, 24, 26]),
 ])
 def test_each_issue_checker_react_to_dirty(issue: IssueType, rowsAffected: List[int], medium_dirty_df):
     profiler = DataProfiler()

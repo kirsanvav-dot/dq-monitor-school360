@@ -46,28 +46,49 @@ from src.constant_issue import IssueType
 
 
 ISSUE_COMPLETENESS = [
+    # Глобально обязательные поля
     IssueType.EMPTY_EVENT_ID,
     IssueType.EMPTY_CLIENT_ID,
+    IssueType.EMPTY_EVENT_TYPE,
     IssueType.EMPTY_EVENT_TS,
     IssueType.EMPTY_DEVICE_TYPE,
+    IssueType.EMPTY_IP_ADDRESS,
+    IssueType.EMPTY_GEO_COUNTRY,
     IssueType.EMPTY_GEO_CITY,
+    IssueType.EMPTY_CHANNEL,
+    # Обязательные для транзакций
     IssueType.EMPTY_AMOUNT_RUB,
     IssueType.EMPTY_CURRENCY,
+    IssueType.EMPTY_MERCHANT_CATEGORY,
+    IssueType.EMPTY_MERCHANT_COUNTRY,
+    IssueType.EMPTY_CARD_LAST4,
+    # Обязательные для сессий
+    IssueType.EMPTY_SESSION_START_TS,
+    IssueType.EMPTY_SESSION_END_TS,
+    IssueType.EMPTY_LOGIN_SUCCESS,
+    IssueType.EMPTY_AUTH_METHOD,
+    # Условный
     IssueType.EMPTY_FLAG_REASON,
 ]
-ISSUE_VALIDITY  = [
+ISSUE_VALIDITY = [
+    IssueType.INVALID_EVENT_TYPE,
     IssueType.INVALID_FORMAT_DATE,
+    IssueType.INVALID_SESSION_START_TS,
+    IssueType.INVALID_SESSION_END_TS,
     IssueType.INVALID_IP_ADDRESS,
     IssueType.INVALID_AMOUNT_RUB,
     IssueType.INVALID_CURRENCY,
     IssueType.INVALID_MERCHANT_CATEGORY,
     IssueType.INVALID_CARD_LAST4,
     IssueType.INVALID_DEVICE_TYPE,
+    IssueType.INVALID_GEO_COUNTRY,  # включается, когда geo_country нормализован до ISO-2
+    IssueType.INVALID_CHANNEL,
 ]
 ISSUE_CONSISTENCY = [
     IssueType.INCONSISTENCY_FLAGGED,
     IssueType.INCONSISTENCY_TRANSACTION,
     IssueType.INCONSISTENCY_SESSION,
+    IssueType.INCONSISTENCY_SESSION_TIMESTAMPS,
 ]
 ISSUE_UNIQUENESS = [
     IssueType.DUPLICATE_FULL,

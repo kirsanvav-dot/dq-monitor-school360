@@ -159,7 +159,9 @@ class DataProfiler():
         IssueType.INVALID_MERCHANT_CATEGORY,
         IssueType.INVALID_CARD_LAST4,
         IssueType.INVALID_DEVICE_TYPE,
-        IssueType.INVALID_GEO_COUNTRY,
+        # INVALID_GEO_COUNTRY исключён из пайплайна: датасет хранит полные названия
+        # стран ("Russia", "Germany"), а не ISO-2 коды ("RU", "DE").
+        # Константа и метод сохранены — включить после нормализации geo_country.
         IssueType.INVALID_CHANNEL,
 
         # Consistency
@@ -375,7 +377,7 @@ class DataProfiler():
       return None
 
   def _check_empty_flag_reason(self, df: pd.DataFrame) -> Optional[DQIssue]:
-      mask = (df['flag_reason'].isnull()) | (df['flag_reason'] == "") & (df['is_flagged'] == True)
+      mask = ((df['flag_reason'].isnull()) | (df['flag_reason'] == "")) & (df['is_flagged'] == True)
       bad_index = df[mask].index
       if len(bad_index) > 0:
           return DQIssue(
@@ -456,7 +458,9 @@ class DataProfiler():
 
   def _check_invalid_amount_rub(self, df: pd.DataFrame) -> Optional[DQIssue]:
     is_empty = (df['amount_rub'].isna()) | (df['amount_rub'] == "")
-    mask = ~(is_empty) & ((df['amount_rub'] < 0) | (df['amount_rub'] > 10_000_000))
+    # Минимум — 1 копейка (0.01 руб); суммы меньше или равные 0 недопустимы.
+    # Максимум — 10 000 000 руб включительно (сумма >= 10M считается аномалией).
+    mask = ~(is_empty) & ((df['amount_rub'] < 0.01) | (df['amount_rub'] >= 10_000_000))
     bad_indices = df.index[mask]
     if len(bad_indices) > 0:
         return DQIssue(
@@ -499,8 +503,25 @@ class DataProfiler():
     return None
 
   def _check_invalid_card_last4(self, df: pd.DataFrame) -> Optional[DQIssue]:
+    # Проверяем только транзакции: для сессий наличие card_last4 — ошибка согласованности,
+    # которую ловит INCONSISTENCY_SESSION, а не INVALID_CARD_LAST4.
+    txn_mask = df['event_type'] == 'transaction'
     is_empty = (df['card_last4'].isna()) | (df['card_last4'] == "")
-    mask = ~(is_empty) & ~df['card_last4'].astype(str).str.match(r'^\d{4}$')
+
+    def _normalize(val) -> str:
+        """'1234.0' → '1234' (целое, записанное как float); прочие значения без изменений."""
+        s = str(val)
+        if '.' in s:
+            try:
+                f = float(s)
+                if f == int(f):
+                    return str(int(f))
+            except (ValueError, OverflowError):
+                pass
+        return s
+
+    normalized = df['card_last4'].apply(lambda x: _normalize(x) if pd.notna(x) else '')
+    mask = txn_mask & ~is_empty & ~normalized.str.match(r'^\d{4}$')
     bad_indices = df.index[mask]
     if len(bad_indices) > 0:
         return DQIssue(

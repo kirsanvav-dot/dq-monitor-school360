@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import numpy as np
 import pytest
+from src.data_loader import load_events
 
 
 @pytest.fixture
@@ -51,8 +52,7 @@ def small_dirty_df(small_clean_df) -> pd.DataFrame:
 @pytest.fixture
 def medium_clean_df() -> pd.DataFrame:
     """Чистый средний датасет из реальных данных."""
-    df = pd.read_csv("dq_monitor/data/raw/events_clean.csv")
-    return df
+    return load_events("dq_monitor/data/raw/events_clean.csv")
 
 @pytest.fixture
 def medium_dirty_df(medium_clean_df) -> pd.DataFrame:
@@ -85,9 +85,9 @@ def medium_dirty_df(medium_clean_df) -> pd.DataFrame:
     df.loc[15, "amount_rub"] = -10.0
     df.loc[16, "amount_rub"] = 10000000.0
 
-    df.loc[14, "card_last4"] = 10000.0
-    df.loc[15, "card_last4"] = 5435.1
-    df.loc[16, "card_last4"] = -1.0
+    df.loc[14, "card_last4"] = "10000"   # 5 цифр — не формат card_last4
+    df.loc[15, "card_last4"] = "5435.1"  # дробное число — не формат card_last4
+    df.loc[16, "card_last4"] = "-1"      # отрицательное — не формат card_last4
 
     df.loc[11, "event_ts"] = "2012.12.32 22:48:23"
 
