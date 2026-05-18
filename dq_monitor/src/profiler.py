@@ -532,7 +532,7 @@ class DataProfiler():
 
   def _check_invalid_geo_country(self, df: pd.DataFrame) -> Optional[DQIssue]:
     is_empty = (df['geo_country'].isna()) | (df['geo_country'] == "")
-    mask = ~is_empty & ~df['geo_country'].astype(str).str.match(ref.GEO_COUNTRY_PATTERN)
+    mask = ~is_empty & ~df['geo_country'].astype(str).isin(ref.GEO_COUNTRY_PATTERN)
     bad_indices = df.index[mask]
     if len(bad_indices) > 0:
         return DQIssue(

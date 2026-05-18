@@ -316,14 +316,14 @@ def test_invalid_event_type_not_triggered_for_valid(profiler, base_transaction_d
 
 def test_invalid_geo_country_bad_format(profiler, base_transaction_df):
     df = base_transaction_df.copy()
-    df.loc[0, 'geo_country'] = "Russia"  # полное название вместо ISO-2
+    df.loc[0, 'geo_country'] = "Ru"  # полное название вместо ISO-2
     issue = profiler._check_invalid_geo_country(df)
     assert issue is not None
     assert issue.issue_type == IssueType.INVALID_GEO_COUNTRY
 
 def test_invalid_geo_country_valid_code(profiler, base_transaction_df):
     df = base_transaction_df.copy()
-    df.loc[0, 'geo_country'] = "RU"
+    df.loc[0, 'geo_country'] = "Russia"
     issue = profiler._check_invalid_geo_country(df)
     assert issue is None
 
