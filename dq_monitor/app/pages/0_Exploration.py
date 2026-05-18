@@ -212,6 +212,7 @@ fig.update_layout(
     legend=dict(font=dict(size=16))
 )
 
+
 fig.update_traces(
     textfont_size=18,
     textposition='inside',
