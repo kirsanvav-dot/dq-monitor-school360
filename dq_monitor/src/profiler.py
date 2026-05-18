@@ -127,46 +127,29 @@ class DataProfiler():
         IssueType.EMPTY_EVENT_ID,
         IssueType.EMPTY_CLIENT_ID,
         IssueType.EMPTY_EVENT_TS,
-        IssueType.EMPTY_EVENT_TYPE,
         IssueType.EMPTY_DEVICE_TYPE,
-        IssueType.EMPTY_GEO_COUNTRY,
         IssueType.EMPTY_GEO_CITY,
-        IssueType.EMPTY_CHANNEL,
         IssueType.EMPTY_AMOUNT_RUB,
         IssueType.EMPTY_CURRENCY,
-        IssueType.EMPTY_MERCHANT_CATEGORY,
-        IssueType.EMPTY_MERCHANT_COUNTRY,
-        IssueType.EMPTY_CARD_LAST4,
-        IssueType.EMPTY_SESSION_START,
-        IssueType.EMPTY_SESSION_END,
-        IssueType.EMPTY_LOGIN_SUCCESS,
-        IssueType.EMPTY_AUTH_METHOD,
         IssueType.EMPTY_FLAG_REASON,
-        IssueType.EMPTY_STRING,
 
         # Validity
-        IssueType.INVALID_DATE,
-        IssueType.INVALID_FUTURE_DATE,
+        IssueType.INVALID_FORMAT_DATE,
         IssueType.INVALID_IP_ADDRESS,
+        IssueType.INVALID_AMOUNT_RUB,
         IssueType.INVALID_CURRENCY,
-        IssueType.NEGATIVE_AMOUNT,
-        IssueType.ANOMALOUS_AMOUNT,
-        IssueType.INVALID_EVENT_TYPE,
+        IssueType.INVALID_MERCHANT_CATEGORY,
+        IssueType.INVALID_CARD_LAST4,
         IssueType.INVALID_DEVICE_TYPE,
-        IssueType.INVALID_AUTH_METHOD,
-        IssueType.NUMERIC_MERCHANT_CATEGORY,
-        IssueType.INVALID_CARD_FORMAT,
 
         # Consistency
-        IssueType.INCONSISTENT_FLAG,
-        IssueType.MISSING_FLAG_REASON_WHEN_FLAGGED,
-        IssueType.TRANSACTION_HAS_SESSION_FIELDS,
-        IssueType.SESSION_HAS_TRANSACTION_FIELDS,
-        IssueType.INVALID_SESSION_TIMESTAMP,
+        IssueType.INCONSISTENCY_FLAGGED,
+        IssueType.INCONSISTENCY_TRANSACTION,
+        IssueType.INCONSISTENCY_SESSION,
 
         # Uniqueness
+        IssueType.DUPLICATE_FULL,
         IssueType.DUPLICATE_EVENT_ID,
-        IssueType.DUPLICATE_FULL_ROW,
     ]
     
     for issue_type in checks_to_run:
@@ -261,7 +244,7 @@ class DataProfiler():
       return None
 
   def _check_empty_flag_reason(self, df: pd.DataFrame) -> Optional[DQIssue]:
-      mask = (df['flag_reason'].isnull()) | (df['flag_reason'] == "")
+      mask = (df['flag_reason'].isnull()) | (df['flag_reason'] == "") & (df['is_flagged'] == True)
       bad_index = df[mask].index
       if len(bad_index) > 0:
           return DQIssue(
