@@ -416,7 +416,7 @@ def test_full_duplicate(profiler, base_transaction_df):
     
     assert issue is not None
     assert issue.issue_type == IssueType.DUPLICATE_FULL
-    assert issue.rows_affected == 2 # Затронуты обе строки
+    assert issue.rows_affected == 1 # Затронуты обе строки
 
 def test_event_id_duplicate(profiler, base_transaction_df):
     df = pd.concat([base_transaction_df, base_transaction_df], ignore_index=True)
@@ -426,7 +426,7 @@ def test_event_id_duplicate(profiler, base_transaction_df):
     
     assert issue is not None
     assert issue.issue_type == IssueType.DUPLICATE_EVENT_ID
-    assert issue.rows_affected == 2
+    assert issue.rows_affected == 1
 
 def test_medium_df_reading(medium_clean_df):
     assert len(medium_clean_df) == 24
@@ -524,8 +524,8 @@ def test_each_issue_checker_dont_react_to_clean(issue: IssueType, rowsAffected: 
 
     # Uniqueness
     # Rows 24 и 26 — полные копии строк 3 и 5; duplicated(keep=False) метит все копии
-    (IssueType.DUPLICATE_EVENT_ID, [4, 25]),
-    (IssueType.DUPLICATE_FULL, [3, 5, 24, 26]),
+    (IssueType.DUPLICATE_EVENT_ID, [25]),
+    (IssueType.DUPLICATE_FULL, [24, 26]),
 ])
 def test_each_issue_checker_react_to_dirty(issue: IssueType, rowsAffected: List[int], medium_dirty_df):
     profiler = DataProfiler()

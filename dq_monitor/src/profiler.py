@@ -617,25 +617,21 @@ class DataProfiler():
 
   # UNIQUENESS
   def _check_full_duplicate(self, df: pd.DataFrame):
-      duplicated_mask = df.duplicated(keep=False)
+      duplicated_mask = df.duplicated(keep='first')
       bad_indices = df.index[duplicated_mask]
       if len(bad_indices) > 0:
           return DQIssue(issue_type=IssueType.DUPLICATE_FULL, affected_indices=bad_indices)
       return None
 
   def _check_event_id_duplicate(self, df: pd.DataFrame) -> Optional[DQIssue]:
-      full_duplicates_mask = df.duplicated(keep=False)
+      full_duplicates_mask = df.duplicated(keep='first')
       full_duplicate_indices = df.index[full_duplicates_mask]
       df_no_full_dups = df[~full_duplicates_mask].copy()
       if len(df_no_full_dups) == 0:
           return None
-      duplicated_ids = df_no_full_dups[
-          df_no_full_dups['event_id'].duplicated(keep=False)
-      ]['event_id'].unique()
-      if len(duplicated_ids) == 0:
-          return None
-      mask = df['event_id'].isin(duplicated_ids) & ~full_duplicates_mask
-      bad_indices = df.index[mask]
+      bad_indices = df_no_full_dups.index[
+          df_no_full_dups['event_id'].duplicated(keep='first')
+      ]
       if len(bad_indices) > 0:
           return DQIssue(issue_type=IssueType.DUPLICATE_EVENT_ID, affected_indices=bad_indices)
       return None
