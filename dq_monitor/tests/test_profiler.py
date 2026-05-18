@@ -259,7 +259,7 @@ def check_dqissue_eq_list(ans: List[int], issue: Optional[DQIssue]):
         return
     assert issue is not None
     assert len(issue.affected_indices) == len(ans)
-    for ind in list:
+    for ind in ans:
         assert ind in issue.affected_indices
 
 @pytest.mark.parametrize("issue,rowsAffected", [
@@ -295,3 +295,41 @@ def test_each_issue_checker_dont_react_to_clean(issue: IssueType, rowsAffected: 
     func = getattr(profiler, f"_check_{issue.method_name}")
     assert func is not None
     check_dqissue_eq_list(rowsAffected, func(medium_clean_df))
+
+@pytest.mark.parametrize("issue,rowsAffected", [
+    (IssueType.EMPTY_EVENT_ID, [0]),
+    (IssueType.EMPTY_CLIENT_ID, [10]),
+    (IssueType.EMPTY_EVENT_TS, [1]),
+    (IssueType.EMPTY_DEVICE_TYPE, [2]),
+    (IssueType.EMPTY_GEO_CITY, [6]),
+    (IssueType.EMPTY_AMOUNT_RUB, [9]),
+    (IssueType.EMPTY_CURRENCY, [7]),
+    (IssueType.EMPTY_FLAG_REASON, [8]),
+
+    # Validity
+    (IssueType.INVALID_IP_ADDRESS, [0, 1, 2]),
+    (IssueType.INVALID_CURRENCY, [7, 8, 9]),
+    (IssueType.INVALID_DEVICE_TYPE, [10]),
+    (IssueType.INVALID_AMOUNT_RUB, [14, 15, 16]),
+    (IssueType.INVALID_CARD_LAST4, [14, 15, 16]),
+    (IssueType.INVALID_FORMAT_DATE, [11]),
+    (IssueType.INVALID_MERCHANT_CATEGORY, [14, 15, 16]),
+
+    # Consistency
+    (IssueType.INCONSISTENCY_FLAGGED, [21]),
+    (IssueType.INCONSISTENCY_SESSION, [18, 19, 20]),
+    (IssueType.INCONSISTENCY_TRANSACTION, [14, 15, 16]),
+
+    # Uniqueness
+    (IssueType.DUPLICATE_EVENT_ID, [24, 25, 26]),
+    (IssueType.DUPLICATE_FULL, [24, 26]),
+])
+def test_each_issue_checker_react_to_dirty(issue: IssueType, rowsAffected: List[int], medium_dirty_df):
+    profiler = DataProfiler()
+    func = getattr(profiler, f"_check_{issue.method_name}")
+    assert func is not None
+    check_dqissue_eq_list(rowsAffected, func(medium_dirty_df))
+
+def test_dirty_medium_dataset(medium_dirty_df):
+    print(medium_dirty_df)
+    print("a")
