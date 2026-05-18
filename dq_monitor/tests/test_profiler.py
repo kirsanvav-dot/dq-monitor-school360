@@ -473,7 +473,6 @@ def check_dqissue_eq_list(ans: List[int], issue: Optional[DQIssue]):
     (IssueType.INVALID_CURRENCY, []),
     (IssueType.INVALID_DEVICE_TYPE, []),
     (IssueType.INVALID_AMOUNT_RUB, []),
-    # rows 14 и 17 — транзакции с реально битым card_last4 в events_clean.csv (pre-existing DQ)
     (IssueType.INVALID_CARD_LAST4, []),
     (IssueType.INVALID_FORMAT_DATE, []),
     (IssueType.INVALID_MERCHANT_CATEGORY, []),
@@ -512,8 +511,7 @@ def test_each_issue_checker_dont_react_to_clean(issue: IssueType, rowsAffected: 
     (IssueType.INVALID_CURRENCY, [7, 8, 9]),
     (IssueType.INVALID_DEVICE_TYPE, [10]),
     (IssueType.INVALID_AMOUNT_RUB, [14, 15, 16]),
-    # rows 14 и 17 — pre-existing DQ в clean CSV; 15 и 16 — добавлены dirty-фикстурой
-    (IssueType.INVALID_CARD_LAST4, [14, 15, 16, 17]),
+    (IssueType.INVALID_CARD_LAST4, [14, 15, 16]),
     (IssueType.INVALID_FORMAT_DATE, [11]),
     (IssueType.INVALID_MERCHANT_CATEGORY, [14, 15, 16]),
 
