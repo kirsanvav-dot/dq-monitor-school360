@@ -161,6 +161,7 @@ html_table = (
         'text-align': 'center',
         'vertical-align': 'middle'
     })
+
     .set_table_styles([
         # Центрируем заголовки столбцов
         {'selector': 'th', 'props': [('text-align', 'center')]},
