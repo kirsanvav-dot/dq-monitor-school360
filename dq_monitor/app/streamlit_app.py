@@ -53,7 +53,7 @@ uploaded = st.file_uploader(
 
 # Альтернатива — загрузка из файла на диске (удобно для разработки)
 with st.expander("Или загрузить из локального файла"):
-    default_path = Path("data/raw/events_dirty.csv")
+    default_path = Path(r".dq_monitor_data/data/raw/events_dirty.csv")
     local_path = st.text_input("Путь", value=str(default_path))
     if st.button("Загрузить с диска"):
         try:
