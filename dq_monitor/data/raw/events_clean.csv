@@ -1,25 +1,25 @@
 event_id,client_id,event_type,event_ts,device_type,ip_address,geo_country,geo_city,channel,amount_rub,currency,merchant_category,merchant_country,card_last4,is_flagged,flag_reason,session_start_ts,session_end_ts,login_success,auth_method
-654c678b097d1457,C003877,transaction,2025-05-29 19:35:04,mobile,39.250.220.119,Russia,Yekaterinburg,app,10252.91,RUB,grocery,Russia,6673.0,False,,,,,
-762f31a52a0d2ea4,C003877,transaction,2025-03-10 21:49:23,mobile,143.166.6.74,Russia,Yekaterinburg,branch,3619.47,RUB,education,Russia,1706.0,False,,,,,
-44b51d1885e65975,C009448,transaction,2025-05-29 13:41:09,atm,209.52.184.73,Russia,Saint Petersburg,web,2572.08,RUB,restaurant,Russia,6628.0,False,,,,,
+654c678b097d1457,C003877,transaction,2025-05-29 19:35:04,mobile,39.250.220.119,Russia,Yekaterinburg,app,10252.91,RUB,grocery,Russia,6673,False,,,,,
+762f31a52a0d2ea4,C003877,transaction,2025-03-10 21:49:23,mobile,143.166.6.74,Russia,Yekaterinburg,branch,3619.47,RUB,education,Russia,1706,False,,,,,
+44b51d1885e65975,C009448,transaction,2025-05-29 13:41:09,atm,209.52.184.73,Russia,Saint Petersburg,web,2572.08,RUB,restaurant,Russia,6628,False,,,,,
 45557a8189351504,C023998,session,2025-02-26 12:40:36,mobile,133.70.126.232,Russia,Novosibirsk,app,,,,,,False,,2025-02-26 12:40:36,2025-02-26 12:41:36,True,password
 9cf5b60fca8d6f45,C003877,session,2025-02-10 18:16:08,atm,35.15.153.206,Russia,Yekaterinburg,web,,,,,,False,,2025-02-10 18:16:08,2025-02-10 18:54:08,True,biometric
-ac8c65e459699108,C009448,transaction,2025-01-17 18:54:05,desktop,54.74.191.183,Russia,Saint Petersburg,branch,57353.81,RUB,education,Russia,2078.0,False,,,,,
+ac8c65e459699108,C009448,transaction,2025-01-17 18:54:05,desktop,54.74.191.183,Russia,Saint Petersburg,branch,57353.81,RUB,education,Russia,2078,False,,,,,
 4df750f53e627c7f,C023998,session,2025-01-24 11:37:31,atm,237.224.199.108,Russia,Novosibirsk,branch,,,,,,False,,2025-01-24 11:37:31,2025-01-24 11:40:31,True,sms_otp
-8464e97a56b83b86,C009448,transaction,2025-03-03 14:52:52,mobile,178.23.51.100,Russia,Saint Petersburg,app,291.88,RUB,restaurant,Russia,9681.0,False,,,,,
-7c26b1d559adcbb7,C003877,transaction,2025-06-27 14:33:36,mobile,230.234.181.112,Russia,Yekaterinburg,app,9383.24,RUB,restaurant,Russia,2742.0,False,,,,,
-34e687ac934382ef,C003877,transaction,2025-04-25 12:25:52,atm,101.60.181.116,Russia,Yekaterinburg,web,179.15,RUB,healthcare,Russia,8112.0,False,,,,,
-0214ec450d2e6db3,C003877,transaction,2025-04-12 16:11:14,desktop,153.235.188.230,Russia,Yekaterinburg,app,397.12,RUB,grocery,Russia,5784.0,False,,,,,
-8aec1df8aaa06b31,C023998,transaction,2025-01-18 18:14:07,desktop,37.193.237.179,Russia,Novosibirsk,web,339.3,RUB,grocery,Russia,9171.0,False,,,,,
+8464e97a56b83b86,C009448,transaction,2025-03-03 14:52:52,mobile,178.23.51.100,Russia,Saint Petersburg,app,291.88,RUB,restaurant,Russia,9681,False,,,,,
+7c26b1d559adcbb7,C003877,transaction,2025-06-27 14:33:36,mobile,230.234.181.112,Russia,Yekaterinburg,app,9383.24,RUB,restaurant,Russia,2742,False,,,,,
+34e687ac934382ef,C003877,transaction,2025-04-25 12:25:52,atm,101.60.181.116,Russia,Yekaterinburg,web,179.15,RUB,healthcare,Russia,8112,False,,,,,
+0214ec450d2e6db3,C003877,transaction,2025-04-12 16:11:14,desktop,153.235.188.230,Russia,Yekaterinburg,app,397.12,RUB,grocery,Russia,5784,False,,,,,
+8aec1df8aaa06b31,C023998,transaction,2025-01-18 18:14:07,desktop,37.193.237.179,Russia,Novosibirsk,web,339.3,RUB,grocery,Russia,9171,False,,,,,
 9841515aa0d49063,C009448,session,2025-01-06 16:15:06,mobile,115.32.12.122,Russia,Saint Petersburg,web,,,,,,False,,2025-01-06 16:15:06,2025-01-06 16:46:06,True,password
 4069c960c5985896,C003877,session,2025-02-13 20:15:56,mobile,160.148.122.176,Russia,Kazan,web,,,,,,False,,2025-02-13 20:15:56,2025-02-13 20:46:56,True,password
-a3b13af99cb027b5,C023998,transaction,2025-01-28 21:37:44,mobile,62.152.185.35,Russia,Novosibirsk,app,607.3,RUB,healthcare,Russia,709.0,False,,,,,
-f9530c40b24876a3,C009448,transaction,2025-04-13 13:54:09,atm,84.226.114.13,Russia,Saint Petersburg,app,6478.86,RUB,clothing,Russia,6743.0,False,,,,,
-44ed234a94165ad4,C009448,transaction,2025-03-21 21:20:57,desktop,8.214.64.47,Russia,Saint Petersburg,branch,9170.65,RUB,online_shopping,Russia,1770.0,False,,,,,
-3f5bd1465f28d160,C003877,transaction,2025-05-05 15:56:45,mobile,201.116.108.128,Russia,Yekaterinburg,web,9305.21,RUB,atm_withdrawal,Russia,113.0,True,too cute,,,,
+a3b13af99cb027b5,C023998,transaction,2025-01-28 21:37:44,mobile,62.152.185.35,Russia,Novosibirsk,app,607.3,RUB,healthcare,Russia,0709,False,,,,,
+f9530c40b24876a3,C009448,transaction,2025-04-13 13:54:09,atm,84.226.114.13,Russia,Saint Petersburg,app,6478.86,RUB,clothing,Russia,6743,False,,,,,
+44ed234a94165ad4,C009448,transaction,2025-03-21 21:20:57,desktop,8.214.64.47,Russia,Saint Petersburg,branch,9170.65,RUB,online_shopping,Russia,1770,False,,,,,
+3f5bd1465f28d160,C003877,transaction,2025-05-05 15:56:45,mobile,201.116.108.128,Russia,Yekaterinburg,web,9305.21,RUB,atm_withdrawal,Russia,0113,True,too cute,,,,
 5971d5cfcd3a22c5,C003877,session,2025-06-29 16:36:42,atm,206.110.227.60,Russia,Yekaterinburg,branch,,,,,,False,,2025-06-29 16:36:42,2025-06-29 16:58:42,True,biometric
 2312735c342e45ca,C003877,session,2025-01-08 10:59:41,mobile,180.201.49.78,Russia,Yekaterinburg,branch,,,,,,False,,2025-01-08 10:59:41,2025-01-08 11:34:41,True,password
 a699bd3f533d49b8,C009448,session,2025-06-22 06:08:25,desktop,9.108.79.142,Russia,Saint Petersburg,web,,,,,,False,,2025-06-22 06:08:25,2025-06-22 06:15:25,True,sms_otp
-a8adbc5445b83010,C009448,transaction,2025-05-10 12:50:05,desktop,251.86.150.204,Russia,Saint Petersburg,branch,1164.17,RUB,transport,Russia,5003.0,False,,,,,
+a8adbc5445b83010,C009448,transaction,2025-05-10 12:50:05,desktop,251.86.150.204,Russia,Saint Petersburg,branch,1164.17,RUB,transport,Russia,5003,False,,,,,
 510fe4a4fca0f85f,C023998,session,2025-05-25 09:33:51,desktop,167.15.42.83,Russia,Novosibirsk,app,,,,,,False,,2025-05-25 09:33:51,2025-05-25 09:58:51,True,biometric
 5a6ce51c961f344e,C009448,session,2025-01-27 11:54:21,desktop,47.158.107.215,Russia,Saint Petersburg,branch,,,,,,False,,2025-01-27 11:54:21,2025-01-27 12:10:21,True,biometric

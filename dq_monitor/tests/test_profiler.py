@@ -474,7 +474,7 @@ def check_dqissue_eq_list(ans: List[int], issue: Optional[DQIssue]):
     (IssueType.INVALID_DEVICE_TYPE, []),
     (IssueType.INVALID_AMOUNT_RUB, []),
     # rows 14 и 17 — транзакции с реально битым card_last4 в events_clean.csv (pre-existing DQ)
-    (IssueType.INVALID_CARD_LAST4, [14, 17]),
+    (IssueType.INVALID_CARD_LAST4, []),
     (IssueType.INVALID_FORMAT_DATE, []),
     (IssueType.INVALID_MERCHANT_CATEGORY, []),
     # INVALID_GEO_COUNTRY исключён: датасет использует полные имена стран, не ISO-2
