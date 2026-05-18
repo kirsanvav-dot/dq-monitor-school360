@@ -19,9 +19,6 @@ class CleanType(str, Enum):
     CORRECTION = "correction"
     IGNORE = "ignore"
 
-    EMPTY = "empty" #FIXME - временный флаг того, что правило не установлено, необходим тест,
-                    #что в наших данных нет такого флага либо вручную
-
 ALL = "all" #служебное определение для column, если нет четкого столбца
 
 class IssueType(Enum):

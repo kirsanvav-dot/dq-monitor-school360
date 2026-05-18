@@ -69,6 +69,41 @@ import pandas as pd
 from typing import Set, List, Optional
 from src.constant_issue import IssueType, DQDimension, CleanType
 
+PIPELINE_ORDER = {
+    CleanType.DELETE: 1,      # Сначала выкидываем мусор (уменьшаем объем df)
+    CleanType.ZEROING: 2,     # Затем зачищаем невалидные поля
+    CleanType.CORRECTION: 3,  # Затем тратим ресурсы на сложный маппинг
+    CleanType.IGNORE: 4,      # Игнорируемые можно ставить в самый конец (или вообще не передавать)
+}
+
+checks_to_run: list[IssueType] = [
+        IssueType.EMPTY_EVENT_ID,
+        IssueType.EMPTY_CLIENT_ID,
+        IssueType.EMPTY_EVENT_TS,
+        IssueType.EMPTY_DEVICE_TYPE,
+        IssueType.EMPTY_GEO_CITY,
+        IssueType.EMPTY_AMOUNT_RUB,
+        IssueType.EMPTY_CURRENCY,
+        IssueType.EMPTY_FLAG_REASON,
+
+        # Validity
+        IssueType.INVALID_FORMAT_DATE,
+        IssueType.INVALID_IP_ADDRESS,
+        IssueType.INVALID_AMOUNT_RUB,
+        IssueType.INVALID_CURRENCY,
+        IssueType.INVALID_MERCHANT_CATEGORY,
+        IssueType.INVALID_CARD_LAST4,
+        IssueType.INVALID_DEVICE_TYPE,
+
+        # Consistency
+        IssueType.INCONSISTENCY_FLAGGED,
+        IssueType.INCONSISTENCY_TRANSACTION,
+        IssueType.INCONSISTENCY_SESSION,
+
+        # Uniqueness
+        IssueType.DUPLICATE_FULL,
+        IssueType.DUPLICATE_EVENT_ID,
+    ]
 
 @dataclass
 class ClIssue:
@@ -86,43 +121,54 @@ class ClIssue:
 
 @dataclass
 class CleaningConfig:
-  """
-  Контракт между UI и DataCleaner.
-  Определяет, какие проблемы качества данных мы собираемся исправлять.
-  """
-  
-  # 1. Если UI включает исправления целыми блоками (измерениями)
-  enabled_dimensions: Set[DQDimension] = field(default_factory=set)
-  
-  # 2. Если UI включает исправления точечно (конкретные галочки)
-  enabled_issues: Set[IssueType] = field(default_factory=set)
-  
-  # 3. Исключения (например, включили весь Completeness, но сняли галочку с одного поля)
-  disabled_issues: Set[IssueType] = field(default_factory=set)
-  def get_issues_to_clean(self) -> List[IssueType]:
-    """Резолвер: собирает итоговый список проблем, которые нужно исправить."""
-    issues_to_clean = set()
-    
-    # Шаг 1: Добавляем все проблемы из включенных измерений
-    if self.enabled_dimensions:
-        for issue in IssueType:
-            if issue.dimension in self.enabled_dimensions:
-                issues_to_clean.add(issue)
-                
-    # Шаг 2: Добавляем точечно выбранные проблемы
-    if self.enabled_issues:
-        issues_to_clean.update(self.enabled_issues)
+    """
+    Контракт между UI и DataCleaner.
+    Определяет, какие проблемы качества данных мы собираемся исправлять.
+    """
+    enabled_dimensions: Set[DQDimension] = field(default_factory=set)
+    enabled_issues: Set[IssueType] = field(default_factory=set)
+    disabled_issues: Set[IssueType] = field(default_factory=set)
+    def get_issues_to_clean(self) -> List[IssueType]:
+        """
+        Резолвер: собирает и сортирует список проблем для исправления.
         
-    # Шаг 3: Удаляем то, что попало в исключения
-    if self.disabled_issues:
-        issues_to_clean.difference_update(self.disabled_issues)
+        АРХИТЕКТУРНОЕ РЕШЕНИЕ: 
+        Обеспечением порядка конвейера (сначала удаление, затем зануление, 
+        и только в конце - ресурсоемкое восстановление) занимается ИМЕННО ЭТОТ метод.
+        Обработчик (DataCleaner) не должен сам перетасовывать правила, он 
+        доверяет порядку, который пришел из контракта.
+        """
+        issues_to_clean = set()
         
-    return list(issues_to_clean)
+        # Шаг 1: Сбор проблем из измерений
+        if self.enabled_dimensions:
+            for issue in IssueType:
+                if issue.dimension in self.enabled_dimensions:
+                    issues_to_clean.add(issue)
+                    
+        # Шаг 2: Добавление точечных проблем
+        if self.enabled_issues:
+            issues_to_clean.update(self.enabled_issues)
+            
+        # Шаг 3: Удаление исключений
+        if self.disabled_issues:
+            issues_to_clean.difference_update(self.disabled_issues)
+            
+        # Шаг 4: ГАРАНТИЯ ПОРЯДКА КОНВЕЙЕРА
+        # Сортируем собранный set по весу CleanType, заданному в PIPELINE_ORDER
+        sorted_issues = sorted(
+            list(issues_to_clean),
+            key=lambda issue: PIPELINE_ORDER.get(issue.clean_type, 99)
+        )
+        
+        return sorted_issues
 
 @dataclass
 class CleaningLog:
   total_rows_before: int
-  total_rows_after: int
+  total_rows_after: int #Важно - это абсолютное значение оставшегося количества строк, так как
+                        #далеко не все методы удаляют строки. Для конкретных изменений необходимо 
+                        #ипользовать соотвествующие property
   issues: List[ClIssue] = field(default_factory=list)
 
   def _total_unique(self, clean_type: CleanType) -> int:
@@ -130,6 +176,13 @@ class CleaningLog:
     for issue in self.issues:
       if issue.clean_type == clean_type:
         indices = indices.union(issue.affected_indices)
+    return len(indices)
+
+  @property
+  def total_all(self) -> int:
+    indices = pd.Index([])
+    for issue in self.issues:
+      indices = indices.union(issue.affected_indices)
     return len(indices)
 
   @property
@@ -168,3 +221,43 @@ class CleaningLog:
     ])
     
     return df.sort_values(by=["clean_action", "rows_affected"], ascending=[True, False]).reset_index(drop=True)
+
+class DataCleaner:
+  def clean(self, df: pd.DataFrame, config: CleaningConfig) -> Tuple[pd.DataFrame, CleaningLog]:
+    df_clean = df.copy()
+    log_issues = []
+    initial_rows = len(df_clean)
+    # 1. Получаем список ошибок (контракт ГАРАНТИРУЕТ правильный порядок: 
+    #    сначала DELETE, затем ZEROING, затем CORRECTION).
+    #    Мы просто итерируемся по нему без дополнительной сортировки.
+    issues_to_clean: List[IssueType] = config.get_issues_to_clean()
+    for issue_type in issues_to_clean:
+      # 2. Формируем имя метода (например: "_clean_empty_client_id")
+      method_name = f"_clean_{issue_type.method_name}"
+      
+      try:
+          clean_method = getattr(self, method_name)
+      except AttributeError:
+          raise NotImplementedError(
+              f"Ошибка архитектуры: метод исправления '{method_name}' "
+              f"не реализован в DataCleaner для {issue_type.name}."
+          )
+      
+      # 3. Вызываем метод. Он сам найдет мусор и сам его уберет.
+      df_clean, affected_indices = clean_method(df_clean)
+      
+      # 4. Если строки были изменены, добавляем запись в лог
+      if len(affected_indices) > 0:
+          log_issues.append(
+              ClIssue(
+                  issue_type=issue_type,
+                  affected_indices=affected_indices
+              )
+          )
+    # Собираем итоговый отчет
+    log = CleaningLog(
+        total_rows_before=initial_rows,
+        total_rows_after=len(df_clean),
+        issues=log_issues
+    )
+    return df_clean, log
