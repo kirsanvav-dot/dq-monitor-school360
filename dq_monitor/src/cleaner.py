@@ -128,8 +128,9 @@ class CleaningLog:
   def _total_unique(self, clean_type: CleanType) -> int:
     indices = pd.Index([])
     for issue in self.issues:
-        if issue.clean_type == clean_type:
-          indices = indices.union(issue.affected_indices)
+      if issue.clean_type == clean_type:
+        indices = indices.union(issue.affected_indices)
+    return len(indices)
 
   @property
   def total_deleted(self) -> int:
