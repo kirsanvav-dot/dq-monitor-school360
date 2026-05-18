@@ -68,17 +68,24 @@ def base_session_df():
             df[col] = df[col].astype('string')
     return df
 
-# ==================== COMPLETENESS CHECKS (8 шт.) ====================
+# ==================== COMPLETENESS CHECKS ====================
 
 def test_empty_event_id(profiler, base_transaction_df):
     df = base_transaction_df.copy()
     df.loc[0, 'event_id'] = ""
     issue = profiler._check_empty_event_id(df)
-    
+
     assert issue is not None
     assert issue.issue_type == IssueType.EMPTY_EVENT_ID
     assert issue.rows_affected == 1
     assert 0 in issue.affected_indices
+
+def test_empty_event_id_null(profiler, base_transaction_df):
+    df = base_transaction_df.copy()
+    df.loc[0, 'event_id'] = pd.NA
+    issue = profiler._check_empty_event_id(df)
+    assert issue is not None
+    assert issue.issue_type == IssueType.EMPTY_EVENT_ID
 
 def test_empty_client_id(profiler, base_transaction_df):
     df = base_transaction_df.copy()
@@ -120,25 +127,122 @@ def test_empty_amount_rub_for_transaction(profiler, base_transaction_df):
     assert issue is not None
     assert issue.issue_type == IssueType.EMPTY_AMOUNT_RUB
 
+def test_empty_event_type(profiler, base_transaction_df):
+    df = base_transaction_df.copy()
+    df.loc[0, 'event_type'] = ""
+    issue = profiler._check_empty_event_type(df)
+    assert issue is not None
+    assert issue.issue_type == IssueType.EMPTY_EVENT_TYPE
+
+def test_empty_ip_address(profiler, base_transaction_df):
+    df = base_transaction_df.copy()
+    df.loc[0, 'ip_address'] = pd.NA
+    issue = profiler._check_empty_ip_address(df)
+    assert issue is not None
+    assert issue.issue_type == IssueType.EMPTY_IP_ADDRESS
+
+def test_empty_geo_country(profiler, base_transaction_df):
+    df = base_transaction_df.copy()
+    df.loc[0, 'geo_country'] = ""
+    issue = profiler._check_empty_geo_country(df)
+    assert issue is not None
+    assert issue.issue_type == IssueType.EMPTY_GEO_COUNTRY
+
+def test_empty_channel(profiler, base_transaction_df):
+    df = base_transaction_df.copy()
+    df.loc[0, 'channel'] = pd.NA
+    issue = profiler._check_empty_channel(df)
+    assert issue is not None
+    assert issue.issue_type == IssueType.EMPTY_CHANNEL
+
 def test_empty_currency_for_transaction(profiler, base_transaction_df):
     df = base_transaction_df.copy()
     df.loc[0, 'currency'] = ""
     issue = profiler._check_empty_currency(df)
-    
     assert issue is not None
-    # Примечание: тут надо поправить IssueType.EMPTY_EMPTY_CURRENCY на EMPTY_CURRENCY в profiler.py
     assert issue.issue_type == IssueType.EMPTY_CURRENCY
 
-"""def test_empty_flag_reason(profiler, base_transaction_df):
+def test_empty_merchant_category_for_transaction(profiler, base_transaction_df):
     df = base_transaction_df.copy()
-    df.loc[0, 'flag_reason'] = ""
+    df.loc[0, 'merchant_category'] = pd.NA
+    issue = profiler._check_empty_merchant_category(df)
+    assert issue is not None
+    assert issue.issue_type == IssueType.EMPTY_MERCHANT_CATEGORY
 
+def test_empty_merchant_category_not_triggered_for_session(profiler, base_session_df):
+    issue = profiler._check_empty_merchant_category(base_session_df.copy())
+    assert issue is None
+
+def test_empty_merchant_country_for_transaction(profiler, base_transaction_df):
+    df = base_transaction_df.copy()
+    df.loc[0, 'merchant_country'] = pd.NA
+    issue = profiler._check_empty_merchant_country(df)
+    assert issue is not None
+    assert issue.issue_type == IssueType.EMPTY_MERCHANT_COUNTRY
+
+def test_empty_card_last4_for_transaction(profiler, base_transaction_df):
+    df = base_transaction_df.copy()
+    df.loc[0, 'card_last4'] = ""
+    issue = profiler._check_empty_card_last4(df)
+    assert issue is not None
+    assert issue.issue_type == IssueType.EMPTY_CARD_LAST4
+
+def test_empty_card_last4_not_triggered_for_session(profiler, base_session_df):
+    issue = profiler._check_empty_card_last4(base_session_df.copy())
+    assert issue is None
+
+def test_empty_session_start_ts(profiler, base_session_df):
+    df = base_session_df.copy()
+    df.loc[0, 'session_start_ts'] = ""
+    issue = profiler._check_empty_session_start_ts(df)
+    assert issue is not None
+    assert issue.issue_type == IssueType.EMPTY_SESSION_START_TS
+
+def test_empty_session_start_ts_not_triggered_for_transaction(profiler, base_transaction_df):
+    issue = profiler._check_empty_session_start_ts(base_transaction_df.copy())
+    assert issue is None
+
+def test_empty_session_end_ts(profiler, base_session_df):
+    df = base_session_df.copy()
+    df.loc[0, 'session_end_ts'] = pd.NA
+    issue = profiler._check_empty_session_end_ts(df)
+    assert issue is not None
+    assert issue.issue_type == IssueType.EMPTY_SESSION_END_TS
+
+def test_empty_login_success(profiler, base_session_df):
+    df = base_session_df.copy()
+    df.loc[0, 'login_success'] = None
+    issue = profiler._check_empty_login_success(df)
+    assert issue is not None
+    assert issue.issue_type == IssueType.EMPTY_LOGIN_SUCCESS
+
+def test_empty_login_success_not_triggered_for_transaction(profiler, base_transaction_df):
+    issue = profiler._check_empty_login_success(base_transaction_df.copy())
+    assert issue is None
+
+def test_empty_auth_method(profiler, base_session_df):
+    df = base_session_df.copy()
+    df.loc[0, 'auth_method'] = ""
+    issue = profiler._check_empty_auth_method(df)
+    assert issue is not None
+    assert issue.issue_type == IssueType.EMPTY_AUTH_METHOD
+
+def test_empty_flag_reason(profiler, base_transaction_df):
+    df = base_transaction_df.copy()
+    df.loc[0, 'is_flagged'] = True
+    df.loc[0, 'flag_reason'] = ""
     issue = profiler._check_empty_flag_reason(df)
-    
     assert issue is not None
     assert issue.issue_type == IssueType.EMPTY_FLAG_REASON
-"""
-# ==================== VALIDITY CHECKS (7 шт.) ====================
+
+def test_empty_flag_reason_not_triggered_when_not_flagged(profiler, base_transaction_df):
+    df = base_transaction_df.copy()
+    df.loc[0, 'is_flagged'] = False
+    df.loc[0, 'flag_reason'] = ""
+    issue = profiler._check_empty_flag_reason(df)
+    assert issue is None
+
+# ==================== VALIDITY CHECKS ====================
 
 def test_invalid_format_date(profiler, base_transaction_df):
     df = base_transaction_df.copy()
@@ -194,14 +298,72 @@ def test_invalid_card_last4(profiler, base_transaction_df):
 def test_invalid_device_type(profiler, base_transaction_df, monkeypatch):
     monkeypatch.setattr(ref, "VALID_DEVICE_TYPES", ["mobile", "desktop"])
     df = base_transaction_df.copy()
-    df.loc[0, 'device_type'] = "toaster" # Устройство не из списка
+    df.loc[0, 'device_type'] = "toaster"
     issue = profiler._check_invalid_device_type(df)
-    
     assert issue is not None
     assert issue.issue_type == IssueType.INVALID_DEVICE_TYPE
 
+def test_invalid_event_type(profiler, base_transaction_df):
+    df = base_transaction_df.copy()
+    df.loc[0, 'event_type'] = "pageview"
+    issue = profiler._check_invalid_event_type(df)
+    assert issue is not None
+    assert issue.issue_type == IssueType.INVALID_EVENT_TYPE
 
-# ==================== CONSISTENCY CHECKS (3 шт.) ====================
+def test_invalid_event_type_not_triggered_for_valid(profiler, base_transaction_df):
+    issue = profiler._check_invalid_event_type(base_transaction_df.copy())
+    assert issue is None
+
+def test_invalid_geo_country_bad_format(profiler, base_transaction_df):
+    df = base_transaction_df.copy()
+    df.loc[0, 'geo_country'] = "Russia"  # полное название вместо ISO-2
+    issue = profiler._check_invalid_geo_country(df)
+    assert issue is not None
+    assert issue.issue_type == IssueType.INVALID_GEO_COUNTRY
+
+def test_invalid_geo_country_valid_code(profiler, base_transaction_df):
+    df = base_transaction_df.copy()
+    df.loc[0, 'geo_country'] = "RU"
+    issue = profiler._check_invalid_geo_country(df)
+    assert issue is None
+
+def test_invalid_channel(profiler, base_transaction_df, monkeypatch):
+    monkeypatch.setattr(ref, "VALID_CHANNELS", {"app", "web", "atm", "branch"})
+    df = base_transaction_df.copy()
+    df.loc[0, 'channel'] = "telegram"
+    issue = profiler._check_invalid_channel(df)
+    assert issue is not None
+    assert issue.issue_type == IssueType.INVALID_CHANNEL
+
+def test_invalid_channel_not_triggered_for_empty(profiler, base_transaction_df, monkeypatch):
+    monkeypatch.setattr(ref, "VALID_CHANNELS", {"app", "web", "atm", "branch"})
+    df = base_transaction_df.copy()
+    df.loc[0, 'channel'] = ""  # пустой — не наша ответственность (EMPTY_CHANNEL)
+    issue = profiler._check_invalid_channel(df)
+    assert issue is None
+
+def test_invalid_session_start_ts(profiler, base_session_df):
+    df = base_session_df.copy()
+    df.loc[0, 'session_start_ts'] = "вчера вечером"
+    issue = profiler._check_invalid_session_start_ts(df)
+    assert issue is not None
+    assert issue.issue_type == IssueType.INVALID_SESSION_START_TS
+
+def test_invalid_session_end_ts(profiler, base_session_df):
+    df = base_session_df.copy()
+    df.loc[0, 'session_end_ts'] = "99/99/9999"
+    issue = profiler._check_invalid_session_end_ts(df)
+    assert issue is not None
+    assert issue.issue_type == IssueType.INVALID_SESSION_END_TS
+
+def test_invalid_session_ts_not_triggered_for_empty(profiler, base_session_df):
+    df = base_session_df.copy()
+    df.loc[0, 'session_start_ts'] = pd.NA  # пустой — не наша ответственность (EMPTY_*)
+    issue = profiler._check_invalid_session_start_ts(df)
+    assert issue is None
+
+
+# ==================== CONSISTENCY CHECKS ====================
 
 def test_inconsistency_flagged_field(profiler, base_transaction_df):
     df = base_transaction_df.copy()
@@ -223,14 +385,29 @@ def test_inconsistency_transaction_field(profiler, base_transaction_df):
 
 def test_inconsistency_session_field(profiler, base_session_df):
     df = base_session_df.copy()
-    # Сессия, но содержит данные о транзакции
-    df.loc[0, 'amount_rub'] = 1000.0 
+    df.loc[0, 'amount_rub'] = 1000.0
     issue = profiler._check_inconsistency_session_field(df)
-    
     assert issue is not None
     assert issue.issue_type == IssueType.INCONSISTENCY_SESSION
 
-# ==================== UNIQUENESS CHECKS (2 шт.) ====================
+def test_inconsistency_session_timestamps(profiler, base_session_df):
+    df = base_session_df.copy()
+    df.loc[0, 'session_start_ts'] = "2023-10-01 13:00:00"
+    df.loc[0, 'session_end_ts']   = "2023-10-01 12:00:00"  # конец раньше начала
+    issue = profiler._check_inconsistency_session_timestamps(df)
+    assert issue is not None
+    assert issue.issue_type == IssueType.INCONSISTENCY_SESSION_TIMESTAMPS
+    assert issue.rows_affected == 1
+
+def test_inconsistency_session_timestamps_not_triggered_for_valid(profiler, base_session_df):
+    issue = profiler._check_inconsistency_session_timestamps(base_session_df.copy())
+    assert issue is None
+
+def test_inconsistency_session_timestamps_not_triggered_for_transaction(profiler, base_transaction_df):
+    issue = profiler._check_inconsistency_session_timestamps(base_transaction_df.copy())
+    assert issue is None
+
+# ==================== UNIQUENESS CHECKS ====================
 
 def test_full_duplicate(profiler, base_transaction_df):
     # Дублируем первую строку
@@ -263,16 +440,35 @@ def check_dqissue_eq_list(ans: List[int], issue: Optional[DQIssue]):
         assert ind in issue.affected_indices
 
 @pytest.mark.parametrize("issue,rowsAffected", [
+    # Completeness — глобальные
     (IssueType.EMPTY_EVENT_ID, []),
     (IssueType.EMPTY_CLIENT_ID, []),
+    (IssueType.EMPTY_EVENT_TYPE, []),
     (IssueType.EMPTY_EVENT_TS, []),
     (IssueType.EMPTY_DEVICE_TYPE, []),
+    (IssueType.EMPTY_IP_ADDRESS, []),
+    (IssueType.EMPTY_GEO_COUNTRY, []),
     (IssueType.EMPTY_GEO_CITY, []),
+    (IssueType.EMPTY_CHANNEL, []),
+    # Completeness — транзакционные
     (IssueType.EMPTY_AMOUNT_RUB, []),
     (IssueType.EMPTY_CURRENCY, []),
+    (IssueType.EMPTY_MERCHANT_CATEGORY, []),
+    (IssueType.EMPTY_MERCHANT_COUNTRY, []),
+    (IssueType.EMPTY_CARD_LAST4, []),
+    # Completeness — сессионные
+    (IssueType.EMPTY_SESSION_START_TS, []),
+    (IssueType.EMPTY_SESSION_END_TS, []),
+    (IssueType.EMPTY_LOGIN_SUCCESS, []),
+    (IssueType.EMPTY_AUTH_METHOD, []),
+    # Completeness — условный
     (IssueType.EMPTY_FLAG_REASON, []),
 
     # Validity
+    (IssueType.INVALID_EVENT_TYPE, []),
+    (IssueType.INVALID_FORMAT_DATE, []),
+    (IssueType.INVALID_SESSION_START_TS, []),
+    (IssueType.INVALID_SESSION_END_TS, []),
     (IssueType.INVALID_IP_ADDRESS, []),
     (IssueType.INVALID_CURRENCY, []),
     (IssueType.INVALID_DEVICE_TYPE, []),
@@ -280,11 +476,14 @@ def check_dqissue_eq_list(ans: List[int], issue: Optional[DQIssue]):
     (IssueType.INVALID_CARD_LAST4, []),
     (IssueType.INVALID_FORMAT_DATE, []),
     (IssueType.INVALID_MERCHANT_CATEGORY, []),
+    (IssueType.INVALID_GEO_COUNTRY, []),
+    (IssueType.INVALID_CHANNEL, []),
 
     # Consistency
     (IssueType.INCONSISTENCY_FLAGGED, []),
     (IssueType.INCONSISTENCY_SESSION, []),
     (IssueType.INCONSISTENCY_TRANSACTION, []),
+    (IssueType.INCONSISTENCY_SESSION_TIMESTAMPS, []),
 
     # Uniqueness
     (IssueType.DUPLICATE_EVENT_ID, []),

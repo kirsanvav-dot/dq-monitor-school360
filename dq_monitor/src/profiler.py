@@ -124,28 +124,49 @@ class DataProfiler():
     issues = []
     # Список обхода поиска ошибок
     checks_to_run: list[IssueType] = [
+        # Completeness — глобальные поля
         IssueType.EMPTY_EVENT_ID,
         IssueType.EMPTY_CLIENT_ID,
+        IssueType.EMPTY_EVENT_TYPE,
         IssueType.EMPTY_EVENT_TS,
         IssueType.EMPTY_DEVICE_TYPE,
+        IssueType.EMPTY_IP_ADDRESS,
+        IssueType.EMPTY_GEO_COUNTRY,
         IssueType.EMPTY_GEO_CITY,
+        IssueType.EMPTY_CHANNEL,
+        # Completeness — поля транзакций
         IssueType.EMPTY_AMOUNT_RUB,
         IssueType.EMPTY_CURRENCY,
+        IssueType.EMPTY_MERCHANT_CATEGORY,
+        IssueType.EMPTY_MERCHANT_COUNTRY,
+        IssueType.EMPTY_CARD_LAST4,
+        # Completeness — поля сессий
+        IssueType.EMPTY_SESSION_START_TS,
+        IssueType.EMPTY_SESSION_END_TS,
+        IssueType.EMPTY_LOGIN_SUCCESS,
+        IssueType.EMPTY_AUTH_METHOD,
+        # Completeness — условный (is_flagged)
         IssueType.EMPTY_FLAG_REASON,
 
         # Validity
+        IssueType.INVALID_EVENT_TYPE,
         IssueType.INVALID_FORMAT_DATE,
+        IssueType.INVALID_SESSION_START_TS,
+        IssueType.INVALID_SESSION_END_TS,
         IssueType.INVALID_IP_ADDRESS,
         IssueType.INVALID_AMOUNT_RUB,
         IssueType.INVALID_CURRENCY,
         IssueType.INVALID_MERCHANT_CATEGORY,
         IssueType.INVALID_CARD_LAST4,
         IssueType.INVALID_DEVICE_TYPE,
+        IssueType.INVALID_GEO_COUNTRY,
+        IssueType.INVALID_CHANNEL,
 
         # Consistency
         IssueType.INCONSISTENCY_FLAGGED,
         IssueType.INCONSISTENCY_TRANSACTION,
         IssueType.INCONSISTENCY_SESSION,
+        IssueType.INCONSISTENCY_SESSION_TIMESTAMPS,
 
         # Uniqueness
         IssueType.DUPLICATE_FULL,
@@ -193,6 +214,16 @@ class DataProfiler():
           )
       return None
 
+  def _check_empty_event_type(self, df: pd.DataFrame) -> Optional[DQIssue]:
+      mask = (df['event_type'].isnull()) | (df['event_type'] == "")
+      bad_index = df[mask].index
+      if len(bad_index) > 0:
+          return DQIssue(
+              issue_type=IssueType.EMPTY_EVENT_TYPE,
+              affected_indices=bad_index,
+          )
+      return None
+
   def _check_empty_event_ts(self, df: pd.DataFrame) -> Optional[DQIssue]:
       mask = (df['event_ts'].isnull()) | (df['event_ts'] == "")
       bad_index = df[mask].index
@@ -213,12 +244,42 @@ class DataProfiler():
           )
       return None
 
+  def _check_empty_ip_address(self, df: pd.DataFrame) -> Optional[DQIssue]:
+      mask = (df['ip_address'].isnull()) | (df['ip_address'] == "")
+      bad_index = df[mask].index
+      if len(bad_index) > 0:
+          return DQIssue(
+              issue_type=IssueType.EMPTY_IP_ADDRESS,
+              affected_indices=bad_index,
+          )
+      return None
+
+  def _check_empty_geo_country(self, df: pd.DataFrame) -> Optional[DQIssue]:
+      mask = (df['geo_country'].isnull()) | (df['geo_country'] == "")
+      bad_index = df[mask].index
+      if len(bad_index) > 0:
+          return DQIssue(
+              issue_type=IssueType.EMPTY_GEO_COUNTRY,
+              affected_indices=bad_index,
+          )
+      return None
+
   def _check_empty_geo_city(self, df: pd.DataFrame) -> Optional[DQIssue]:
       mask = (df['geo_city'].isnull()) | (df['geo_city'] == "")
       bad_index = df[mask].index
       if len(bad_index) > 0:
           return DQIssue(
               issue_type=IssueType.EMPTY_GEO_CITY,
+              affected_indices=bad_index,
+          )
+      return None
+
+  def _check_empty_channel(self, df: pd.DataFrame) -> Optional[DQIssue]:
+      mask = (df['channel'].isnull()) | (df['channel'] == "")
+      bad_index = df[mask].index
+      if len(bad_index) > 0:
+          return DQIssue(
+              issue_type=IssueType.EMPTY_CHANNEL,
               affected_indices=bad_index,
           )
       return None
@@ -243,6 +304,76 @@ class DataProfiler():
           )
       return None
 
+  def _check_empty_merchant_category(self, df: pd.DataFrame) -> Optional[DQIssue]:
+      mask = ((df['merchant_category'].isnull()) | (df['merchant_category'] == "")) & (df['event_type'] == "transaction")
+      bad_index = df[mask].index
+      if len(bad_index) > 0:
+          return DQIssue(
+              issue_type=IssueType.EMPTY_MERCHANT_CATEGORY,
+              affected_indices=bad_index,
+          )
+      return None
+
+  def _check_empty_merchant_country(self, df: pd.DataFrame) -> Optional[DQIssue]:
+      mask = ((df['merchant_country'].isnull()) | (df['merchant_country'] == "")) & (df['event_type'] == "transaction")
+      bad_index = df[mask].index
+      if len(bad_index) > 0:
+          return DQIssue(
+              issue_type=IssueType.EMPTY_MERCHANT_COUNTRY,
+              affected_indices=bad_index,
+          )
+      return None
+
+  def _check_empty_card_last4(self, df: pd.DataFrame) -> Optional[DQIssue]:
+      mask = ((df['card_last4'].isnull()) | (df['card_last4'] == "")) & (df['event_type'] == "transaction")
+      bad_index = df[mask].index
+      if len(bad_index) > 0:
+          return DQIssue(
+              issue_type=IssueType.EMPTY_CARD_LAST4,
+              affected_indices=bad_index,
+          )
+      return None
+
+  def _check_empty_session_start_ts(self, df: pd.DataFrame) -> Optional[DQIssue]:
+      mask = ((df['session_start_ts'].isnull()) | (df['session_start_ts'] == "")) & (df['event_type'] == "session")
+      bad_index = df[mask].index
+      if len(bad_index) > 0:
+          return DQIssue(
+              issue_type=IssueType.EMPTY_SESSION_START_TS,
+              affected_indices=bad_index,
+          )
+      return None
+
+  def _check_empty_session_end_ts(self, df: pd.DataFrame) -> Optional[DQIssue]:
+      mask = ((df['session_end_ts'].isnull()) | (df['session_end_ts'] == "")) & (df['event_type'] == "session")
+      bad_index = df[mask].index
+      if len(bad_index) > 0:
+          return DQIssue(
+              issue_type=IssueType.EMPTY_SESSION_END_TS,
+              affected_indices=bad_index,
+          )
+      return None
+
+  def _check_empty_login_success(self, df: pd.DataFrame) -> Optional[DQIssue]:
+      mask = (df['login_success'].isnull()) & (df['event_type'] == "session")
+      bad_index = df[mask].index
+      if len(bad_index) > 0:
+          return DQIssue(
+              issue_type=IssueType.EMPTY_LOGIN_SUCCESS,
+              affected_indices=bad_index,
+          )
+      return None
+
+  def _check_empty_auth_method(self, df: pd.DataFrame) -> Optional[DQIssue]:
+      mask = ((df['auth_method'].isnull()) | (df['auth_method'] == "")) & (df['event_type'] == "session")
+      bad_index = df[mask].index
+      if len(bad_index) > 0:
+          return DQIssue(
+              issue_type=IssueType.EMPTY_AUTH_METHOD,
+              affected_indices=bad_index,
+          )
+      return None
+
   def _check_empty_flag_reason(self, df: pd.DataFrame) -> Optional[DQIssue]:
       mask = (df['flag_reason'].isnull()) | (df['flag_reason'] == "") & (df['is_flagged'] == True)
       bad_index = df[mask].index
@@ -255,6 +386,17 @@ class DataProfiler():
 
 
     #Validity
+  def _check_invalid_event_type(self, df: pd.DataFrame) -> Optional[DQIssue]:
+    is_empty = df['event_type'].isnull() | (df['event_type'] == "")
+    mask = ~is_empty & ~df['event_type'].astype(str).isin(ref.VALID_EVENT_TYPES)
+    bad_indices = df.index[mask]
+    if len(bad_indices) > 0:
+        return DQIssue(
+            issue_type=IssueType.INVALID_EVENT_TYPE,
+            affected_indices=bad_indices,
+        )
+    return None
+
   def _check_invalid_format_date(self, df: pd.DataFrame) -> Optional[DQIssue]:
     parsed = pd.to_datetime(df['event_ts'], errors='coerce')
     mask = parsed.isna() & df['event_ts'].notna() & (df['event_ts'].astype(str).str.strip() != "")
@@ -263,6 +405,30 @@ class DataProfiler():
         return DQIssue(
             issue_type=IssueType.INVALID_FORMAT_DATE,
             affected_indices=bad_index,
+        )
+    return None
+
+  def _check_invalid_session_start_ts(self, df: pd.DataFrame) -> Optional[DQIssue]:
+    is_empty = df['session_start_ts'].isnull() | (df['session_start_ts'].astype(str).str.strip() == "")
+    parsed = pd.to_datetime(df['session_start_ts'], errors='coerce')
+    mask = ~is_empty & parsed.isna()
+    bad_indices = df.index[mask]
+    if len(bad_indices) > 0:
+        return DQIssue(
+            issue_type=IssueType.INVALID_SESSION_START_TS,
+            affected_indices=bad_indices,
+        )
+    return None
+
+  def _check_invalid_session_end_ts(self, df: pd.DataFrame) -> Optional[DQIssue]:
+    is_empty = df['session_end_ts'].isnull() | (df['session_end_ts'].astype(str).str.strip() == "")
+    parsed = pd.to_datetime(df['session_end_ts'], errors='coerce')
+    mask = ~is_empty & parsed.isna()
+    bad_indices = df.index[mask]
+    if len(bad_indices) > 0:
+        return DQIssue(
+            issue_type=IssueType.INVALID_SESSION_END_TS,
+            affected_indices=bad_indices,
         )
     return None
 
@@ -343,6 +509,28 @@ class DataProfiler():
         )
     return None
 
+  def _check_invalid_geo_country(self, df: pd.DataFrame) -> Optional[DQIssue]:
+    is_empty = (df['geo_country'].isna()) | (df['geo_country'] == "")
+    mask = ~is_empty & ~df['geo_country'].astype(str).str.match(ref.GEO_COUNTRY_PATTERN)
+    bad_indices = df.index[mask]
+    if len(bad_indices) > 0:
+        return DQIssue(
+            issue_type=IssueType.INVALID_GEO_COUNTRY,
+            affected_indices=bad_indices,
+        )
+    return None
+
+  def _check_invalid_channel(self, df: pd.DataFrame) -> Optional[DQIssue]:
+    is_empty = (df['channel'].isna()) | (df['channel'] == "")
+    mask = ~is_empty & ~df['channel'].astype(str).isin(ref.VALID_CHANNELS)
+    bad_indices = df.index[mask]
+    if len(bad_indices) > 0:
+        return DQIssue(
+            issue_type=IssueType.INVALID_CHANNEL,
+            affected_indices=bad_indices,
+        )
+    return None
+
   # CONSISTENCY
   def _check_inconsistency_flagged_field(self, df: pd.DataFrame) -> Optional[DQIssue]:
     is_empty = (df['flag_reason'].isna()) | (df['flag_reason'] == "")
@@ -389,6 +577,22 @@ class DataProfiler():
                 issue_type=IssueType.INCONSISTENCY_SESSION,
                 affected_indices=bad_indices)
         return None
+
+  def _check_inconsistency_session_timestamps(self, df: pd.DataFrame) -> Optional[DQIssue]:
+      session_mask = df['event_type'] == 'session'
+      both_present = df['session_start_ts'].notna() & df['session_end_ts'].notna() \
+                     & (df['session_start_ts'].astype(str).str.strip() != "") \
+                     & (df['session_end_ts'].astype(str).str.strip() != "")
+      start = pd.to_datetime(df['session_start_ts'], errors='coerce')
+      end   = pd.to_datetime(df['session_end_ts'],   errors='coerce')
+      mask = session_mask & both_present & start.notna() & end.notna() & (end < start)
+      bad_indices = df.index[mask]
+      if len(bad_indices) > 0:
+          return DQIssue(
+              issue_type=IssueType.INCONSISTENCY_SESSION_TIMESTAMPS,
+              affected_indices=bad_indices,
+          )
+      return None
 
   # UNIQUENESS
   def _check_full_duplicate(self, df: pd.DataFrame):
