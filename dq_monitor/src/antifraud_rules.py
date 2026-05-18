@@ -128,18 +128,39 @@ class BaseRule(ABC):
         return {'rule_id':self.rule_id, 'name':self.name, 'triggered_count':self.triggered_count}
 
 class CarouselRule(BaseRule):
+    """
+    Карусель - если много операций (>5) от одного клиента
+    за короткое время (<= 10 минут), то это фрод.
+    """
     def __init__(self):
-      self.rule_id: str = "R3"
+      self.rule_id: str = "R1"
       self.name: str = "Carousel"
       self.description: str = "Detects large counts of events"
       self.triggered_count: int = 0
     
     def use_rule(self, df: pd.DataFrame) -> "pd.Series[bool]":
+      # создаю маску с помощью скользящего окна
       is_data = pd.to_datetime(df['event_ts'], errors='coerce').notna()
-      filtred_df = df[df['client_id'].notna & is_data]
-      filtred_df = filtred_df.sort_values('event_ts')
-      
-      filtred_df.reset_index().set_index('event_ts').rolling('10min').count()
+      filtred_df = df[df['client_id'].notna() & is_data]
+      filtred_df['event_ts'] = pd.to_datetime(filtred_df['event_ts'], errors='coerce')
+      filtred_df = filtred_df.sort_values(['client_id','event_ts'])
+      count_in_window = filtred_df.set_index('event_ts').groupby('client_id')['event_id'].rolling(window='10min').count()
+      mask1 = count_in_window > 5
+      # размазываю True по предыдущим 5 процессам
+      shifts = [mask1.shift(-i).fillna(False) for i in range(0,6)]
+      mask = pd.concat(shifts, axis=1).any(axis=1)
+      # пытаюсь вернуть стандартные индексы для маски
+      mask = mask.reset_index(name='is_frod')
+      mask['event_ts'] = mask['event_ts'].astype(str)
+      ans = (
+          df.reset_index().merge(
+          mask.drop_duplicates(),
+          on = ['client_id', 'event_ts'],
+          how = 'left'
+          ).set_index('index')
+      )['is_frod'].fillna(False)
+      self.triggered_count = ans.sum()
+      return ans
 
 
 class NightWithdrawalRule(BaseRule):
@@ -188,40 +209,29 @@ class RuleEngine():
     и выводит информацию о задейственных правилах.
     """
     def run_all(self, df: pd.DataFrame) -> tuple[pd.DataFrame, list]:
-        rule2 = NightWithdrawalRule()
-        mask_rule2 = rule2.use_rule(df)
-        rule2_str = pd.Series('R2', index=mask_rule2.index).where(mask_rule2, '')
-        rule3 = RiscedCategoryRule()
-        mask_rule3 = rule3.use_rule(df)
-        rule3_str = pd.Series('R3', index=mask_rule3.index).where(mask_rule3, '')
-        mask = mask_rule2 | mask_rule3
-        triggered_rules = rule2_str + rule3_str
-        new_df = pd.concat([df, mask, triggered_rules], axis=1)
-        new_df.rename(columns={0:'is_fraud_predicted', 1:'triggered_rules'})
-        info_rules = [rule2.as_dict, rule3.as_dict]
-        return (new_df, info_rules)
+        total_mask = pd.Series(False, index=df.index)
+        triggered_rules = pd.Series('', index=df.index)
+        rules_info = []
+        for rule in [CarouselRule(), NightWithdrawalRule(), RiscedCategoryRule()]:
+          mask_rule = rule.use_rule(df)
+          rule_str = pd.Series(',', index=df.index).where(total_mask&mask_rule, '') + \
+            pd.Series(rule.rule_id, index=df.index).where(mask_rule, '')
+          total_mask |= mask_rule
+          triggered_rules += rule_str
+          rules_info.append(rule.as_dict)
+        new_df = pd.concat([df, total_mask, triggered_rules], axis=1).rename(columns={0:'is_fraud_predicted', 1:'triggered_rules'})
+        return (new_df, rules_info)
 
+# экспериментирую, тестирую
+# from data_loader import load_events
+# df = load_events('dq_monitor/data/raw/events_dirty.csv')
 
-# экспериментирую
-from data_loader import load_events
-df = load_events('dq_monitor/data/raw/events_dirty.csv')
-# print(df['amount_rub'])
+# engine = RuleEngine()
+# ans1,ans2 = engine.run_all(df)
 
-# obj = df.loc[145:145]
-# print(obj)
-# print(obj['amount_rub'] > 50000, pd.to_datetime(obj['event_ts']).hour)
-# df = df[140:150]
-
-# rule2 = NightWithdrawalRule()
-# mask = rule2.use_rule(df)
-# print(mask)
-
-# print(rule2.triggered_count)
-# print(mask.iloc[145])
-
-
-engine = RuleEngine()
-ans1,ans2 = engine.run_all(df)
-
-print(ans1.head())
-print(ans2)
+# print("Часть итоговой таблицы:")
+# print(ans1[ans1['is_fraud_predicted']].sample(25))
+# print()
+# print("Данные относительно каждого правила:")
+# print(ans2)
+# print()
