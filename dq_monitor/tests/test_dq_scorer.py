@@ -3,8 +3,7 @@ import pandas as pd
 from src.dq_scorer import (
     compute_dq_score, 
     get_unique_affected_rows, 
-    calculate_dimension_score, 
-    calculate_uniqueness_score,
+    calculate_dimension_score,
     ISSUE_COMPLETENESS,
     ISSUE_UNIQUENESS
 )
@@ -48,21 +47,6 @@ def test_calculate_dimension_score():
     assert score == pytest.approx(0.7)
     assert set(affected) == {0, 1, 2}
 
-def test_calculate_uniqueness_score(sample_df):
-    """Тест расчёта скора для уникальности с вычетом оригинальных строк (дубликаты влияют как n-1)"""
-    issues = [
-        DQIssue(issue_type=IssueType.DUPLICATE_FULL, affected_indices=pd.Index([3, 4, 5]))
-    ]
-    
-    # Всего строк 6. Из 3 строк дубликатов (3,4,5) уникальная комбинация 1. 
-    # Лишних строк (excess_count) = 3 - 1 = 2
-    # Скор = 1 - (2 / 6) = 0.66666...
-    score, duplicate_indices = calculate_uniqueness_score(6, issues, ISSUE_UNIQUENESS, sample_df)
-    
-    # Используем pytest.approx для сравнения float
-    assert score == pytest.approx(1 - (2 / 6))
-    assert set(duplicate_indices) == {3, 4, 5}
-
 def test_compute_dq_score(sample_df):
     """Интеграционный тест подсчёта всех баллов"""
     issues = [
@@ -88,7 +72,7 @@ def test_compute_dq_score(sample_df):
     assert score.consistency == pytest.approx(1.0)
     
     # Uniqueness: 2 лишних дубликата на 6 строк = 1 - (2/6)
-    assert score.uniqueness == pytest.approx(1 - (2 / 6))
+    assert score.uniqueness == pytest.approx(1 - (3 / 6))
     
     # Total Score: объединяем индексы.
     # Completeness (0, 1) | Validity (1, 2) | Uniqueness (3, 4, 5) -> Всего уникальных "грязных" строк: 0, 1, 2, 3, 4, 5

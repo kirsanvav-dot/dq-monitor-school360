@@ -128,17 +128,6 @@ def calculate_dimension_score(total_rows: int, issues: list, issue_types: List[I
     score = 1 - (problems_count / total_rows)
     return score, affected_rows
 
-def calculate_uniqueness_score(total_rows: int, issues: list, issue_types: List[IssueType], df:pd.DataFrame):
-    if total_rows == 0:
-        return 1.0, set()
-    duplicate_indices = get_unique_affected_rows(issues, issue_types)
-    if not duplicate_indices:
-        return 1.0, set()
-    dup_df = df.loc[list(duplicate_indices)]
-    unique_combinations = dup_df.drop_duplicates()
-    excess_count = len(dup_df) - len(unique_combinations)
-    score = 1 - (excess_count / total_rows)
-    return score, duplicate_indices
 
 def compute_dq_score(df: pd.DataFrame, report: Report) -> DQScore:
     total_rows = len(df)
@@ -154,7 +143,7 @@ def compute_dq_score(df: pd.DataFrame, report: Report) -> DQScore:
     completeness_score, completeness_set = calculate_dimension_score(total_rows, issues, ISSUE_COMPLETENESS)
     validity_score, validity_set = calculate_dimension_score(total_rows, issues, ISSUE_VALIDITY)
     consistency_score, consistency_set = calculate_dimension_score(total_rows, issues, ISSUE_CONSISTENCY)
-    uniqueness_score, uniqueness_set = calculate_uniqueness_score(total_rows, issues, ISSUE_UNIQUENESS, df)
+    uniqueness_score, uniqueness_set = calculate_dimension_score(total_rows, issues, ISSUE_UNIQUENESS)
     total_set = consistency_set | validity_set | completeness_set | uniqueness_set
     total_score = 1 - (len(total_set) / total_rows)
     return DQScore(
