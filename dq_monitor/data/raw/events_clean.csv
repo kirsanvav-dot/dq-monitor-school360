@@ -16,7 +16,7 @@ ac8c65e459699108,C009448,transaction,2025-01-17 18:54:05,desktop,54.74.191.183,R
 a3b13af99cb027b5,C023998,transaction,2025-01-28 21:37:44,mobile,62.152.185.35,Russia,Novosibirsk,app,607.3,RUB,healthcare,Russia,709.0,False,,,,,
 f9530c40b24876a3,C009448,transaction,2025-04-13 13:54:09,atm,84.226.114.13,Russia,Saint Petersburg,app,6478.86,RUB,clothing,Russia,6743.0,False,,,,,
 44ed234a94165ad4,C009448,transaction,2025-03-21 21:20:57,desktop,8.214.64.47,Russia,Saint Petersburg,branch,9170.65,RUB,online_shopping,Russia,1770.0,False,,,,,
-3f5bd1465f28d160,C003877,transaction,2025-05-05 15:56:45,mobile,201.116.108.128,Russia,Yekaterinburg,web,9305.21,RUB,atm_withdrawal,Russia,113.0,False,,,,,
+3f5bd1465f28d160,C003877,transaction,2025-05-05 15:56:45,mobile,201.116.108.128,Russia,Yekaterinburg,web,9305.21,RUB,atm_withdrawal,Russia,113.0,True,too cute,,,,
 5971d5cfcd3a22c5,C003877,session,2025-06-29 16:36:42,atm,206.110.227.60,Russia,Yekaterinburg,branch,,,,,,False,,2025-06-29 16:36:42,2025-06-29 16:58:42,True,biometric
 2312735c342e45ca,C003877,session,2025-01-08 10:59:41,mobile,180.201.49.78,Russia,Yekaterinburg,branch,,,,,,False,,2025-01-08 10:59:41,2025-01-08 11:34:41,True,password
 a699bd3f533d49b8,C009448,session,2025-06-22 06:08:25,desktop,9.108.79.142,Russia,Saint Petersburg,web,,,,,,False,,2025-06-22 06:08:25,2025-06-22 06:15:25,True,sms_otp

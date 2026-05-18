@@ -5,6 +5,8 @@ from src.profiler import DataProfiler, DQIssue
 from src.constant_issue import IssueType
 from src.data_loader import EVENTS_REQUIRED_COLUMNS
 import src.reference_data as ref  # Предполагается, что константы VALID_* определены здесь
+from typing import List, Optional
+
 
 @pytest.fixture
 def profiler():
@@ -247,3 +249,48 @@ def test_event_id_duplicate(profiler, base_transaction_df):
     assert issue is not None
     assert issue.issue_type == IssueType.DUPLICATE_EVENT_ID
     assert issue.rows_affected == 2
+
+def test_medium_df_reading(medium_clean_df):
+    assert len(medium_clean_df) == 24
+
+def check_dqissue_eq_list(ans: List[int], issue: Optional[DQIssue]):
+    if issue is None and len(ans) == 0:
+        return
+    assert issue is not None
+    assert len(issue.affected_indices) == len(ans)
+    for ind in list:
+        assert ind in issue.affected_indices
+
+@pytest.mark.parametrize("issue,rowsAffected", [
+    (IssueType.EMPTY_EVENT_ID, []),
+    (IssueType.EMPTY_CLIENT_ID, []),
+    (IssueType.EMPTY_EVENT_TS, []),
+    (IssueType.EMPTY_DEVICE_TYPE, []),
+    (IssueType.EMPTY_GEO_CITY, []),
+    (IssueType.EMPTY_AMOUNT_RUB, []),
+    (IssueType.EMPTY_CURRENCY, []),
+    (IssueType.EMPTY_FLAG_REASON, []),
+
+    # Validity
+    (IssueType.INVALID_IP_ADDRESS, []),
+    (IssueType.INVALID_CURRENCY, []),
+    (IssueType.INVALID_DEVICE_TYPE, []),
+    (IssueType.INVALID_AMOUNT_RUB, []),
+    (IssueType.INVALID_CARD_LAST4, []),
+    (IssueType.INVALID_FORMAT_DATE, []),
+    (IssueType.INVALID_MERCHANT_CATEGORY, []),
+
+    # Consistency
+    (IssueType.INCONSISTENCY_FLAGGED, []),
+    (IssueType.INCONSISTENCY_SESSION, []),
+    (IssueType.INCONSISTENCY_TRANSACTION, []),
+
+    # Uniqueness
+    (IssueType.DUPLICATE_EVENT_ID, []),
+    (IssueType.DUPLICATE_FULL, []),
+])
+def test_each_issue_checker_dont_react_to_clean(issue: IssueType, rowsAffected: List[int], medium_clean_df):
+    profiler = DataProfiler()
+    func = getattr(profiler, f"_check_{issue.method_name}")
+    assert func is not None
+    check_dqissue_eq_list(rowsAffected, func(medium_clean_df))
