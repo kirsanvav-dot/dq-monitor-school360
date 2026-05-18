@@ -95,7 +95,8 @@ def get_unique_affected_rows(issues: list, issue_types: List[IssueType]):
     affected_rows = set()
     for issue in issues:
         if issue.issue_type in issue_types:
-            affected_rows.add(issue.affected_indices.tolist())
+            for idx in issue.affected_indices:
+                affected_rows.add(idx)
     return affected_rows
 
 def calculate_dimension_score(total_rows: int, issues: list, issue_types: List[IssueType]):
@@ -108,11 +109,11 @@ def calculate_dimension_score(total_rows: int, issues: list, issue_types: List[I
 
 def calculate_uniqueness_score(total_rows: int, issues: list, issue_types: List[IssueType], df:pd.DataFrame):
     if total_rows == 0:
-        return 1.0
+        return 1.0, set()
     duplicate_indices = get_unique_affected_rows(issues, issue_types)
     if not duplicate_indices:
-        return 1.0
-    dup_df = df.lock[list(duplicate_indices)]
+        return 1.0, set()
+    dup_df = df.loc[list(duplicate_indices)]
     unique_combinations = dup_df.drop_duplicates()
     excess_count = len(dup_df) - len(unique_combinations)
     score = 1 - (excess_count / total_rows)

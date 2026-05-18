@@ -25,7 +25,7 @@ def test_get_unique_affected_rows():
         DQIssue(issue_type=IssueType.EMPTY_EVENT_ID, affected_indices=pd.Index([0, 1])),
         DQIssue(issue_type=IssueType.EMPTY_CLIENT_ID, affected_indices=pd.Index([1, 2])),
         # Это другая категория, она не должна попасть в выборку, если мы фильтруем по COMPLETENESS
-        DQIssue(issue_type=IssueType.INVALID_DATE, affected_indices=pd.Index([3])) 
+        DQIssue(issue_type=IssueType.INVALID_FORMAT_DATE, affected_indices=pd.Index([3]))
     ]
     
     unique_rows = get_unique_affected_rows(issues, ISSUE_COMPLETENESS)
@@ -69,7 +69,7 @@ def test_compute_dq_score(sample_df):
         # Completeness: затронуты 0, 1 (2 строки)
         DQIssue(issue_type=IssueType.EMPTY_EVENT_ID, affected_indices=pd.Index([0, 1])),
         # Validity: затронуты 1, 2 (2 строки)
-        DQIssue(issue_type=IssueType.INVALID_DATE, affected_indices=pd.Index([1, 2])),
+        DQIssue(issue_type=IssueType.INVALID_FORMAT_DATE, affected_indices=pd.Index([1, 2])),
         # Uniqueness: затронуты 3, 4, 5 (3 строки, из них 2 лишние)
         DQIssue(issue_type=IssueType.DUPLICATE_FULL, affected_indices=pd.Index([3, 4, 5]))
     ]
