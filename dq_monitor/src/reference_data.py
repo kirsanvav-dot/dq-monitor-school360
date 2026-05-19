@@ -378,7 +378,7 @@ GEO_COUNTRY_PATTERN = (
     'Tuvalu',
     'Uganda',
     'Ukraine',
-    'United Arab Emirates',
+    'UAE',
     'United Kingdom',
     'United States',
     'Uruguay',
