@@ -82,7 +82,7 @@ class IssueType(Enum):
     INVALID_GEO_COUNTRY = ("invalid_geo_country", "Некорректный формат geo_country (ожидается ISO-3166-1 alpha-2, например RU)",
                            DQDimension.VALIDITY, ('geo_country',), CleanType.CORRECTION)
     INVALID_CHANNEL = ("invalid_channel", "Значение channel не входит в допустимые каналы",
-                       DQDimension.VALIDITY, ('channel',), CleanType.CORRECTION)
+                       DQDimension.VALIDITY, ('channel',), CleanType.ZEROING)
     # CONSISTENCY
     INCONSISTENCY_FLAGGED = ('inconsistency_flagged_field', "Несогласованны поля is_flagged и flagged_reason",
                              DQDimension.CONSISTENCY, ('is_flagged', 'flagged_reason'), CleanType.IGNORE)

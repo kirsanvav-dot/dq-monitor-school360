@@ -112,9 +112,7 @@ checks_to_run: list[IssueType] = [
         IssueType.INVALID_MERCHANT_CATEGORY,
         IssueType.INVALID_CARD_LAST4,
         IssueType.INVALID_DEVICE_TYPE,
-        # INVALID_GEO_COUNTRY исключён из пайплайна: датасет хранит полные названия
-        # стран ("Russia", "Germany"), а не ISO-2 коды ("RU", "DE").
-        # Константа и метод сохранены — включить после нормализации geo_country.
+        IssueType.INVALID_GEO_COUNTRY,
         IssueType.INVALID_CHANNEL,
 
         # Consistency
@@ -284,3 +282,10 @@ class DataCleaner:
         issues=log_issues
     )
     return df_clean, log
+
+  def _delete_zero_column(issue: ClIssue, df: pd.DataFrame) -> pd.DataFrame:
+     column = issue.issue_type.column[0]
+     mask = (df[column].isnull()) | (df[column] == "")
+     del_index = df[mask].index
+     filtered_df = df.drop(index=del_index)
+     return filtered_df
