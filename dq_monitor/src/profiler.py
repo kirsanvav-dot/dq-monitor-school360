@@ -159,6 +159,7 @@ class DataProfiler():
         IssueType.INVALID_MERCHANT_CATEGORY,
         IssueType.INVALID_CARD_LAST4,
         IssueType.INVALID_DEVICE_TYPE,
+        IssueType.INVALID_GEO_COUNTRY,
         # INVALID_GEO_COUNTRY исключён из пайплайна: датасет хранит полные названия
         # стран ("Russia", "Germany"), а не ISO-2 коды ("RU", "DE").
         # Константа и метод сохранены — включить после нормализации geo_country.
