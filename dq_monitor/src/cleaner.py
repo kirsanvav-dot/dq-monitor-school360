@@ -64,9 +64,11 @@
 """
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import List, Tuple
+from typing import List, Tuple, Set, Optional
 import pandas as pd
-from typing import Set, List, Optional
+import numpy as np
+import re
+import src.reference_data as ref
 from src.constant_issue import IssueType, DQDimension, CleanType
 
 PIPELINE_ORDER = {
@@ -283,9 +285,269 @@ class DataCleaner:
     )
     return df_clean, log
 
-  def _delete_zero_column(issue: ClIssue, df: pd.DataFrame) -> pd.DataFrame:
-     column = issue.issue_type.column[0]
-     mask = (df[column].isnull()) | (df[column] == "")
-     del_index = df[mask].index
-     filtered_df = df.drop(index=del_index)
-     return filtered_df
+  def _zeroing(self, df: pd.DataFrame, mask: pd.Series, columns: tuple) -> Tuple[pd.DataFrame, pd.Index]:
+      """Вспомогательный метод для зануления значений по маске."""
+      bad_indices = df[mask].index
+      if len(bad_indices) > 0:
+          for col in columns:
+              if col in df.columns:
+                  df.loc[bad_indices, col] = np.nan
+      return df, bad_indices
+
+  def _deletion(self, df: pd.DataFrame, mask: pd.Series) -> Tuple[pd.DataFrame, pd.Index]:
+      """Вспомогательный метод для удаления строк по маске."""
+      bad_indices = df[mask].index
+      if len(bad_indices) > 0:
+          df = df.drop(index=bad_indices)
+      return df, bad_indices
+
+  # COMPLETENESS
+  def _clean_empty_event_id(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['event_id'].isnull()) | (df['event_id'] == "")
+      return self._deletion(df, mask)
+
+  def _clean_empty_client_id(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['client_id'].isnull()) | (df['client_id'] == "")
+      return self._zeroing(df, mask, IssueType.EMPTY_CLIENT_ID.column)
+
+  def _clean_empty_event_type(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['event_type'].isnull()) | (df['event_type'] == "")
+      return self._deletion(df, mask)
+
+  def _clean_empty_event_ts(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['event_ts'].isnull()) | (df['event_ts'] == "")
+      return self._zeroing(df, mask, IssueType.EMPTY_EVENT_TS.column)
+
+  def _clean_empty_device_type(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['device_type'].isnull()) | (df['device_type'] == "")
+      return self._zeroing(df, mask, IssueType.EMPTY_DEVICE_TYPE.column)
+
+  def _clean_empty_ip_address(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['ip_address'].isnull()) | (df['ip_address'] == "")
+      return self._zeroing(df, mask, IssueType.EMPTY_IP_ADDRESS.column)
+
+  def _clean_empty_geo_country(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['geo_country'].isnull()) | (df['geo_country'] == "")
+      return self._zeroing(df, mask, IssueType.EMPTY_GEO_COUNTRY.column)
+
+  def _clean_empty_geo_city(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['geo_city'].isnull()) | (df['geo_city'] == "")
+      return self._zeroing(df, mask, IssueType.EMPTY_GEO_CITY.column)
+
+  def _clean_empty_channel(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['channel'].isnull()) | (df['channel'] == "")
+      return self._zeroing(df, mask, IssueType.EMPTY_CHANNEL.column)
+
+  def _clean_empty_amount_rub(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = ((df['amount_rub'].isnull()) | (df['amount_rub'] == "")) & (df['event_type'] == "transaction")
+      return self._zeroing(df, mask, IssueType.EMPTY_AMOUNT_RUB.column)
+
+  def _clean_empty_currency(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = ((df['currency'].isnull()) | (df['currency'] == "")) & (df['event_type'] == "transaction")
+      return self._zeroing(df, mask, IssueType.EMPTY_CURRENCY.column)
+
+  def _clean_empty_merchant_category(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = ((df['merchant_category'].isnull()) | (df['merchant_category'] == "")) & (df['event_type'] == "transaction")
+      return self._zeroing(df, mask, IssueType.EMPTY_MERCHANT_CATEGORY.column)
+
+  def _clean_empty_merchant_country(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = ((df['merchant_country'].isnull()) | (df['merchant_country'] == "")) & (df['event_type'] == "transaction")
+      return self._zeroing(df, mask, IssueType.EMPTY_MERCHANT_COUNTRY.column)
+
+  def _clean_empty_card_last4(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = ((df['card_last4'].isnull()) | (df['card_last4'] == "")) & (df['event_type'] == "transaction")
+      return self._zeroing(df, mask, IssueType.EMPTY_CARD_LAST4.column)
+
+  def _clean_empty_session_start_ts(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = ((df['session_start_ts'].isnull()) | (df['session_start_ts'] == "")) & (df['event_type'] == "session")
+      return self._zeroing(df, mask, IssueType.EMPTY_SESSION_START_TS.column)
+
+  def _clean_empty_session_end_ts(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = ((df['session_end_ts'].isnull()) | (df['session_end_ts'] == "")) & (df['event_type'] == "session")
+      return self._zeroing(df, mask, IssueType.EMPTY_SESSION_END_TS.column)
+
+  def _clean_empty_login_success(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['login_success'].isnull()) & (df['event_type'] == "session")
+      return self._zeroing(df, mask, IssueType.EMPTY_LOGIN_SUCCESS.column)
+
+  def _clean_empty_auth_method(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = ((df['auth_method'].isnull()) | (df['auth_method'] == "")) & (df['event_type'] == "session")
+      return self._zeroing(df, mask, IssueType.EMPTY_AUTH_METHOD.column)
+
+  def _clean_empty_flag_reason(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = ((df['flag_reason'].isnull()) | (df['flag_reason'] == "")) & (df['is_flagged'] == True)
+      return self._zeroing(df, mask, IssueType.EMPTY_FLAG_REASON.column)
+
+  # VALIDITY
+  def _clean_invalid_event_type(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      is_empty = df['event_type'].isnull() | (df['event_type'] == "")
+      mask = ~is_empty & ~df['event_type'].astype(str).isin(ref.VALID_EVENT_TYPES)
+      return self._deletion(df, mask)
+
+  def _clean_invalid_format_date(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      parsed = pd.to_datetime(df['event_ts'], errors='coerce')
+      mask = parsed.isna() & df['event_ts'].notna() & (df['event_ts'].astype(str).str.strip() != "")
+      return self._zeroing(df, mask, IssueType.INVALID_FORMAT_DATE.column)
+
+  def _clean_invalid_session_start_ts(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      is_empty = df['session_start_ts'].isnull() | (df['session_start_ts'].astype(str).str.strip() == "")
+      parsed = pd.to_datetime(df['session_start_ts'], errors='coerce')
+      mask = ~is_empty & parsed.isna()
+      return self._zeroing(df, mask, IssueType.INVALID_SESSION_START_TS.column)
+
+  def _clean_invalid_session_end_ts(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      is_empty = df['session_end_ts'].isnull() | (df['session_end_ts'].astype(str).str.strip() == "")
+      parsed = pd.to_datetime(df['session_end_ts'], errors='coerce')
+      mask = ~is_empty & parsed.isna()
+      return self._zeroing(df, mask, IssueType.INVALID_SESSION_END_TS.column)
+
+  def _clean_invalid_ip_address(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      ipv4_pattern = re.compile(r'^(\d{1,3}\.){3}\d{1,3}$')
+      ip_series = df['ip_address'].copy()
+      is_empty = (ip_series.isna()) | (ip_series.astype(str).str.strip() == "")
+      matches_pattern = ip_series.astype(str).str.match(ipv4_pattern)
+      valid_range = pd.Series([False] * len(df), index=df.index)
+      pattern_matched_indices = df.index[matches_pattern & ~is_empty]
+      for idx in pattern_matched_indices:
+          ip_str = str(ip_series[idx])
+          parts = ip_str.split('.')
+          if all(0 <= int(part) <= 255 for part in parts):
+              valid_range[idx] = True
+
+      mask = ~is_empty & (~matches_pattern | ~valid_range)
+      return self._zeroing(df, mask, IssueType.INVALID_IP_ADDRESS.column)
+
+  def _clean_invalid_amount_rub(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      is_empty = (df['amount_rub'].isna()) | (df['amount_rub'] == "")
+      mask = ~(is_empty) & ((df['amount_rub'] < 0.01) | (df['amount_rub'] >= 10_000_000))
+      return self._zeroing(df, mask, IssueType.INVALID_AMOUNT_RUB.column)
+
+  def _clean_invalid_channel(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      is_empty = (df['channel'].isna()) | (df['channel'] == "")
+      mask = ~is_empty & ~df['channel'].astype(str).isin(ref.VALID_CHANNELS)
+      return self._zeroing(df, mask, IssueType.INVALID_CHANNEL.column)
+
+  def _clean_invalid_currency(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      is_empty = (df['currency'].isna()) | (df['currency'] == "")
+      mask = ~(is_empty) & ~(df['currency'].astype(str).isin(ref.VALID_CURRENCIES))
+      bad_indices = df.index[mask]
+      if len(bad_indices) > 0:
+          df.loc[bad_indices, 'currency'] = df.loc[bad_indices, 'currency'].replace(ref.CURRENCY_MAPPING)
+          still_invalid = ~df.loc[bad_indices, 'currency'].astype(str).isin(ref.VALID_CURRENCIES)
+          if still_invalid.any():
+              df.loc[bad_indices[still_invalid], 'currency'] = np.nan
+      return df, bad_indices
+
+  def _clean_invalid_merchant_category(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      is_empty = (df['merchant_category'].isna()) | (df['merchant_category'] == "")
+      mask = ~(is_empty) & ~(df['merchant_category'].astype(str).isin(ref.VALID_MERCHANT_CATEGORIES))
+      bad_indices = df.index[mask]
+      if len(bad_indices) > 0:
+          df.loc[bad_indices, 'merchant_category'] = df.loc[bad_indices, 'merchant_category'].replace(ref.MCC_ISO_TO_TEXT)
+          still_invalid = ~df.loc[bad_indices, 'merchant_category'].astype(str).isin(ref.VALID_MERCHANT_CATEGORIES)
+          if still_invalid.any():
+              df.loc[bad_indices[still_invalid], 'merchant_category'] = np.nan
+      return df, bad_indices
+
+  def _clean_invalid_device_type(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      is_empty = (df['device_type'].isna()) | (df['device_type'] == "")
+      mask = ~(is_empty) & ~(df['device_type'].astype(str).isin(ref.VALID_DEVICE_TYPES))
+      bad_indices = df.index[mask]
+      if len(bad_indices) > 0:
+          df.loc[bad_indices, 'device_type'] = df.loc[bad_indices, 'device_type'].astype(str).str.lower()
+          still_invalid = ~df.loc[bad_indices, 'device_type'].astype(str).isin(ref.VALID_DEVICE_TYPES)
+          if still_invalid.any():
+              df.loc[bad_indices[still_invalid], 'device_type'] = np.nan
+      return df, bad_indices
+
+  def _clean_invalid_card_last4(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      # Политика CORRECTION: только цифры, длина < 4 → дополнение нулями слева ('42' → '0042').
+      txn_mask = df['event_type'] == 'transaction'
+      series = df['card_last4'].astype('string')
+      is_empty = series.isna() | (series.str.strip() == '')
+      is_digits = series.str.match(r'^\d+$', na=False)
+      can_pad = txn_mask & ~is_empty & is_digits & (series.str.len() < 4)
+      bad_indices = df.index[can_pad]
+      if len(bad_indices) > 0:
+          df.loc[bad_indices, 'card_last4'] = series.loc[bad_indices].str.zfill(4)
+      return df, bad_indices
+
+  def _clean_invalid_geo_country(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      is_empty = (df['geo_country'].isna()) | (df['geo_country'] == "")
+      mask = ~is_empty & ~df['geo_country'].astype(str).isin(ref.GEO_COUNTRY_PATTERN)
+      bad_indices = df.index[mask]
+      if len(bad_indices) > 0:
+          corrected = df.loc[bad_indices, 'geo_country'].astype(str).str.title()
+          df.loc[bad_indices, 'geo_country'] = corrected
+          still_invalid = ~df.loc[bad_indices, 'geo_country'].isin(ref.GEO_COUNTRY_PATTERN)
+          if still_invalid.any():
+              df.loc[bad_indices[still_invalid], 'geo_country'] = np.nan
+      return df, bad_indices
+
+  # CONSISTENCY
+  def _clean_inconsistency_flagged_field(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      is_empty = (df['flag_reason'].isna()) | (df['flag_reason'] == "")
+      mask = (df['is_flagged'] == False) & ~is_empty
+      # We just want to zero flag_reason, so we pass it explicitly.
+      return self._zeroing(df, mask, ('flag_reason',))
+
+  def _clean_inconsistency_transaction_field(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      transaction_mask = df['event_type'] == 'transaction'
+      session_fields = ['session_start_ts', 'session_end_ts', 'login_success', 'auth_method']
+      
+      has_session_data = pd.Series([False] * len(df), index=df.index)
+      for field in session_fields:
+          if field in df.columns:
+              has_session_data = has_session_data | (df[field].notna() & (df[field].astype(str).str.strip() != ""))
+              
+      mask = transaction_mask & has_session_data
+      return self._zeroing(df, mask, tuple(session_fields))
+
+  def _clean_inconsistency_session_field(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      session_mask = df['event_type'] == 'session'
+      transaction_fields = ['amount_rub', 'currency', 'merchant_category', 'merchant_country', 'card_last4']
+      
+      has_transaction_data = pd.Series([False] * len(df), index=df.index)
+      for field in transaction_fields:
+          if field in df.columns:
+              has_transaction_data = has_transaction_data | (df[field].notna() & (df[field].astype(str).str.strip() != ""))
+              
+      mask = session_mask & has_transaction_data
+      return self._zeroing(df, mask, tuple(transaction_fields))
+
+  def _clean_inconsistency_session_timestamps(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      session_mask = df['event_type'] == 'session'
+      both_present = df['session_start_ts'].notna() & df['session_end_ts'].notna() \
+                     & (df['session_start_ts'].astype(str).str.strip() != "") \
+                     & (df['session_end_ts'].astype(str).str.strip() != "")
+      start = pd.to_datetime(df['session_start_ts'], errors='coerce')
+      end   = pd.to_datetime(df['session_end_ts'],   errors='coerce')
+      mask = session_mask & both_present & start.notna() & end.notna() & (end < start)
+      bad_indices = df.index[mask]
+      if len(bad_indices) > 0:
+          temp = df.loc[bad_indices, 'session_start_ts'].copy()
+          df.loc[bad_indices, 'session_start_ts'] = df.loc[bad_indices, 'session_end_ts']
+          df.loc[bad_indices, 'session_end_ts'] = temp
+      return df, bad_indices
+
+  # UNIQUENESS
+  def _clean_full_duplicate(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = df.duplicated(keep='first')
+      return self._deletion(df, mask)
+
+  def _clean_event_id_duplicate(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      full_duplicates_mask = df.duplicated(keep='first')
+      df_no_full_dups = df[~full_duplicates_mask]
+      if len(df_no_full_dups) == 0:
+          return df, pd.Index([])
+          
+      bad_indices = df_no_full_dups.index[
+          df_no_full_dups['event_id'].duplicated(keep='first') & 
+          df_no_full_dups['event_id'].notna() & 
+          (df_no_full_dups['event_id'] != "")
+      ]
+      
+      if len(bad_indices) > 0:
+          # IGNORE - мы ничего не делаем с данными, но возвращаем индексы для лога
+          pass
+      return df, bad_indices
