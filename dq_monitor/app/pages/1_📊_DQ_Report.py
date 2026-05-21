@@ -63,27 +63,27 @@ report = Report(
         DQIssue(issue_type=IssueType.DUPLICATE_EVENT_ID, affected_indices=pd.Index([34, 35, 36]),)
     ]
 )
+df = st.session_state["df_dirty"]
 
-# profiler = DataProfiler()
-# report = profiler.profile(df)
-# score = compute_dq_score(df, report)
-#
-# st.session_state["dq_report_before"] = report
-# st.session_state["dq_score_before"] = score
-#
-# cols = st.columns(5)
-# cols[0].metric("Total DQ Score", f"{score.total:.3f}")
-# cols[1].metric("Completeness", f"{score.completeness:.3f}")
-# cols[2].metric("Validity", f"{score.validity:.3f}")
-# cols[3].metric("Consistency", f"{score.consistency:.3f}")
-# cols[4].metric("Uniqueness", f"{score.uniqueness:.3f}")
-#
-# st.plotly_chart(plot_dq_score_radar(score.to_dict()))
-# st.plotly_chart(plot_issues_breakdown(report.to_dataframe()))
-# st.dataframe(report.to_dataframe())
+profiler = DataProfiler()
+report = profiler.profile(df)
+score = compute_dq_score(df, report)
+
+st.session_state["dq_report_before"] = report
+st.session_state["dq_score_before"] = score
+
+cols = st.columns(5)
+cols[0].metric("Total DQ Score", f"{score.total:.3f}")
+cols[1].metric("Completeness", f"{score.completeness:.3f}")
+cols[2].metric("Validity", f"{score.validity:.3f}")
+cols[3].metric("Consistency", f"{score.consistency:.3f}")
+cols[4].metric("Uniqueness", f"{score.uniqueness:.3f}")
+
+st.plotly_chart(plot_dq_score_radar(score.to_dict()))
+st.plotly_chart(plot_issues_breakdown(report.to_dataframe()))
+st.dataframe(report.to_dataframe())
 
 # Пример временного ручного теста (раскомментируйте для проверки):
-df = st.session_state["df_dirty"]
 profiler = DataProfiler()
 # просто покажет объект
 #report = profiler.profile(df)
