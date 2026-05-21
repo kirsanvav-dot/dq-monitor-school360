@@ -152,9 +152,8 @@ class CarouselRule(BaseRule):
       # Итоговая маска для исходного df
       mask = pd.Series(False, index=df.index)
       # Обрабатываем каждого клиента отдельно
-      for client_id, group in filtred_df.groupby('client_id'):
+      for _, group in filtred_df.groupby('client_id'):
           times = group['event_ts_dt'].values      # numpy array datetime64
-          countries = group['geo_country'].values  # numpy array
           indices = group.index.values             # оригинальные индексы из df 
           start = 0
           for end in range(len(group)):
