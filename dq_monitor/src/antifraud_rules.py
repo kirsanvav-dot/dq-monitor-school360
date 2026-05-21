@@ -142,7 +142,6 @@ class CarouselRule(BaseRule):
       self.triggered_count: int = 0
 
     def use_rule(self, df: pd.DataFrame) -> "pd.Series[bool]":
-      # Фильтруем: только транзакции с известным клиентом и валидной датой
       is_transaction = df['event_type'] == 'transaction'
       df['event_ts_dt'] = pd.to_datetime(df['event_ts'], errors='coerce')
       is_valid_time = df['event_ts_dt'].notna()
@@ -151,21 +150,16 @@ class CarouselRule(BaseRule):
           is_valid_time & 
           is_transaction
       ].copy()
-      # Сортируем по клиенту и времени (индексы НЕ сбрасываем – это важно!)
       filtred_df.sort_values(['client_id', 'event_ts_dt'], inplace=True)
-      # Итоговая маска для исходного df
       mask = pd.Series(False, index=df.index)
-      # Обрабатываем каждого клиента отдельно
       for client_id, group in filtred_df.groupby('client_id'):
-          times = group['event_ts_dt'].values      # numpy array datetime64
-          countries = group['geo_country'].values  # numpy array
-          indices = group.index.values             # оригинальные индексы из df 
+          times = group['event_ts_dt'].values
+          countries = group['geo_country'].values
+          indices = group.index.values
           start = 0
           for end in range(len(group)):
-              # Двигаем левую границу окна, пока разница > 10 минут
               while (times[end] - times[start]) / np.timedelta64(1, 's') > 600:
                   start += 1
-              # Проверяем окно, если в нём больше 5 элементов
               if end - start >= 5:
                   mask.loc[indices[start:end+1]] = True
       self.triggered_count = mask.sum()
@@ -219,7 +213,7 @@ class ImpossibleGeoRule(BaseRule):
     1) Транзакции были произведены из разных стран
     2) (Усиление Haversine) Требуемая скорость >1000 км/ч
     """
-    cities_coords = { # - координаты городов
+    cities_coords = { # координаты городов
     'Moscow': (55.7558, 37.6173),
     'Novosibirsk': (55.0188, 82.9335),
     'Yekaterinburg': (56.8389, 60.6057),
@@ -281,45 +275,36 @@ class ImpossibleGeoRule(BaseRule):
           return True
 
     def use_rule(self, df):
-      # Фильтруем: только транзакции с известным клиентом, страной и валидной датой
-      is_transaction = df['event_type'] == 'transaction'
-      df['event_ts_dt'] = pd.to_datetime(df['event_ts'], errors='coerce')
-      is_valid_time = df['event_ts_dt'].notna()
-      filtred_df = df[
-          df['client_id'].notna() & 
-          df['geo_country'].notna() & 
-          is_valid_time & 
-          is_transaction
-      ].copy()
-      # Сортируем по клиенту и времени (индексы НЕ сбрасываем – это важно!)
-      filtred_df.sort_values(['client_id', 'event_ts_dt'], inplace=True)
-      # Итоговая маска для исходного df
-      mask = pd.Series(False, index=df.index)
-      # Обрабатываем каждого клиента отдельно
-      for client_id, group in filtred_df.groupby('client_id'):
-          times = group['event_ts_dt'].values      # numpy array datetime64
-          countries = group['geo_country'].values  # numpy array
-          indices = group.index.values             # оригинальные индексы из df
-          start = 0 #
-          for end in range(len(group)):
-              # Двигаем левую границу окна, пока разница > 30 минут
-              while (times[end] - times[start]) / np.timedelta64(1, 's') > 1800:
-                  start += 1
-              # Проверяем окно, если в нём больше одного элемента
-              if end > start:
-                  window_countries = countries[start:end+1]
-                  # В окне есть разные страны → помечаем ВСЕ транзакции окна
-                  if len(np.unique(window_countries)) > 1:
-                      mask.loc[indices[start:end+1]] = True
-                  # Проверка на Haversine - если скорость >10000, то помечаем ВСЕ транзакции окна
-                  else:
-                    if self.is_strange_speed(group.iloc[start:end+1]):
-                      mask.loc[indices[start:end+1]] = True
-      # Применяем маску к исходному DataFrame
-      df['is_fraud_R4'] = mask
-      df.drop(columns=['event_ts_dt'], inplace=True)
-      self.triggered_count = mask.sum()
-      return mask
+        is_transaction = df['event_type'] == 'transaction'
+        df['event_ts_dt'] = pd.to_datetime(df['event_ts'], errors='coerce')
+        is_valid_time = df['event_ts_dt'].notna()
+        filtred_df = df[
+            df['client_id'].notna() & 
+            df['geo_country'].notna() & 
+            is_valid_time & 
+            is_transaction
+        ].copy()
+        filtred_df.sort_values(['client_id', 'event_ts_dt'], inplace=True)
+        mask = pd.Series(False, index=df.index)
+        for client_id, group in filtred_df.groupby('client_id'):
+            times = group['event_ts_dt'].values
+            countries = group['geo_country'].values
+            indices = group.index.values
+            start = 0
+            for end in range(len(group)):
+                while (times[end] - times[start]) / np.timedelta64(1, 's') > 1800:
+                    start += 1
+                if end > start:
+                    window_countries = countries[start:end+1]
+                    if len(np.unique(window_countries)) > 1:
+                        mask.loc[indices[start:end+1]] = True
+                    else:
+                        if self.is_strange_speed(group.iloc[start:end+1]):
+                            mask.loc[indices[start:end+1]] = True
+        df['is_fraud_R4'] = mask
+        df.drop(columns=['event_ts_dt'], inplace=True)
+        self.triggered_count = mask.sum()
+        return mask
 
 class RuleEngine():
     """
