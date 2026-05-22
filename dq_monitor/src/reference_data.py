@@ -32,6 +32,35 @@
 """
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Optional, Any
+
+#   data/geoip/GeoLite2-City.mmdb
+GEOIP_DB_PATH = Path(__file__).resolve().parents[1] / "data" / "geoip" / "GeoLite2-City.mmdb"
+
+
+def open_geoip_reader() -> Optional[Any]:
+    """Открывает GeoLite2-City, если файл БД есть. Иначе None (только lookup по витрине)."""
+    if not GEOIP_DB_PATH.is_file():
+        return None
+    try:
+        import geoip2.database
+        return geoip2.database.Reader(str(GEOIP_DB_PATH))
+    except Exception:
+        return None
+
+
+def city_from_geoip(reader: Any, ip: str) -> Optional[str]:
+    """Город по IP через MaxMind GeoLite2 (англоязычные названия)."""
+    if reader is None:
+        return None
+    try:
+        response = reader.city(ip)
+        name = response.city.name
+        return name if name else None
+    except Exception:
+        return None
+
 
 # ════════════════════════════════════════════════════════════════════
 # ✅ MCC — Merchant Category Codes (ISO 18245 / стандарт платёжных систем)

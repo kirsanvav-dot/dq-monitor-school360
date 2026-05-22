@@ -40,7 +40,7 @@ class IssueType(Enum):
     EMPTY_DEVICE_TYPE = ('empty_device_type', "Пропущено обязательное значение device_type", DQDimension.COMPLETENESS, ('device_type',), CleanType.ZEROING)
     EMPTY_IP_ADDRESS = ('empty_ip_address', "Пропущено обязательное значение ip_address", DQDimension.COMPLETENESS, ('ip_address',), CleanType.ZEROING)
     EMPTY_GEO_COUNTRY = ('empty_geo_country', "Пропущено обязательное значение geo_country", DQDimension.COMPLETENESS, ('geo_country',), CleanType.ZEROING)
-    EMPTY_GEO_CITY = ('empty_geo_city', "Пропущено обязательное значение geo_city", DQDimension.COMPLETENESS, ('geo_city',), CleanType.ZEROING)
+    EMPTY_GEO_CITY = ('empty_geo_city', "Пропущено geo_city — восстановление по IP (витрина / GeoLite2)", DQDimension.COMPLETENESS, ('geo_city',), CleanType.CORRECTION)
     EMPTY_CHANNEL = ('empty_channel', "Пропущено обязательное значение channel", DQDimension.COMPLETENESS, ('channel',), CleanType.ZEROING)
     # Completeness — обязательные поля только для транзакций
     EMPTY_AMOUNT_RUB = ('empty_amount_rub', "Пропущено обязательное значение amount_rub при типе операции transaction",

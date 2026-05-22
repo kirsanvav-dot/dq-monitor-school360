@@ -250,6 +250,7 @@ class DataCleaner:
     df_clean = df.copy()
     log_issues = []
     initial_rows = len(df_clean)
+    self._geoip_reader = ref.open_geoip_reader()
     # 1. Получаем список ошибок (контракт ГАРАНТИРУЕТ правильный порядок: 
     #    сначала DELETE, затем ZEROING, затем CORRECTION).
     #    Мы просто итерируемся по нему без дополнительной сортировки.
@@ -283,7 +284,48 @@ class DataCleaner:
         total_rows_after=len(df_clean),
         issues=log_issues
     )
+    if getattr(self, "_geoip_reader", None) is not None:
+      self._geoip_reader.close()
+      self._geoip_reader = None
     return df_clean, log
+
+  @staticmethod
+  def _is_empty(series: pd.Series) -> pd.Series:
+    return series.isna() | (series.astype(str).str.strip() == "")
+
+  @staticmethod
+  def _valid_ipv4_mask(ip_series: pd.Series) -> pd.Series:
+    ipv4_pattern = re.compile(r"^(\d{1,3}\.){3}\d{1,3}$")
+    is_empty = ip_series.isna() | (ip_series.astype(str).str.strip() == "")
+    matches_pattern = ip_series.astype(str).str.match(ipv4_pattern)
+    valid_range = pd.Series(False, index=ip_series.index)
+    for idx in ip_series.index[matches_pattern & ~is_empty]:
+      parts = str(ip_series[idx]).split(".")
+      try:
+        if all(0 <= int(part) <= 255 for part in parts):
+          valid_range[idx] = True
+      except ValueError:
+        pass
+    return ~is_empty & valid_range
+
+  def _build_ip_to_city_lookup(self, df: pd.DataFrame) -> pd.Series:
+    """Справочник IP → город по уже заполненным строкам витрины."""
+    valid_ip = self._valid_ipv4_mask(df["ip_address"])
+    has_city = ~self._is_empty(df["geo_city"])
+    subset = df.loc[valid_ip & has_city, ["ip_address", "geo_city"]]
+    if subset.empty:
+      return pd.Series(dtype=object)
+
+    def _mode_city(s: pd.Series) -> str:
+      modes = s.mode()
+      return modes.iloc[0] if len(modes) else s.iloc[0]
+
+    return subset.groupby("ip_address")["geo_city"].agg(_mode_city)
+
+  def _resolve_city_from_ip(self, ip: str, ip_lookup: pd.Series) -> Optional[str]:
+    if ip in ip_lookup.index:
+      return ip_lookup[ip]
+    return ref.city_from_geoip(getattr(self, "_geoip_reader", None), ip)
 
   def _zeroing(self, df: pd.DataFrame, mask: pd.Series, columns: tuple) -> Tuple[pd.DataFrame, pd.Index]:
       """Вспомогательный метод для зануления значений по маске."""
@@ -300,6 +342,14 @@ class DataCleaner:
       if len(bad_indices) > 0:
           df = df.drop(index=bad_indices)
       return df, bad_indices
+
+  @staticmethod
+  def _empty_field_count(df: pd.DataFrame) -> pd.Series:
+      """Количество пустых полей в каждой строке (NaN или пустая строка)."""
+      is_empty = df.isna()
+      for col in df.columns:
+          is_empty[col] = is_empty[col] | (df[col].astype(str).str.strip() == "")
+      return is_empty.sum(axis=1)
 
   # COMPLETENESS
   def _clean_empty_event_id(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
@@ -331,8 +381,23 @@ class DataCleaner:
       return self._zeroing(df, mask, IssueType.EMPTY_GEO_COUNTRY.column)
 
   def _clean_empty_geo_city(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
-      mask = (df['geo_city'].isnull()) | (df['geo_city'] == "")
-      return self._zeroing(df, mask, IssueType.EMPTY_GEO_CITY.column)
+      empty_city = self._is_empty(df["geo_city"])
+      valid_ip = self._valid_ipv4_mask(df["ip_address"])
+      mask = empty_city & valid_ip
+      affected = df.index[mask]
+      if len(affected) == 0:
+          return df, pd.Index([])
+
+      ip_lookup = self._build_ip_to_city_lookup(df)
+      restored: list = []
+      for idx in affected:
+          ip = str(df.at[idx, "ip_address"]).strip()
+          city = self._resolve_city_from_ip(ip, ip_lookup)
+          if city:
+              df.at[idx, "geo_city"] = city
+              restored.append(idx)
+
+      return df, pd.Index(restored)
 
   def _clean_empty_channel(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       mask = (df['channel'].isnull()) | (df['channel'] == "")
@@ -402,25 +467,20 @@ class DataCleaner:
       return self._zeroing(df, mask, IssueType.INVALID_SESSION_END_TS.column)
 
   def _clean_invalid_ip_address(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
-      ipv4_pattern = re.compile(r'^(\d{1,3}\.){3}\d{1,3}$')
-      ip_series = df['ip_address'].copy()
-      is_empty = (ip_series.isna()) | (ip_series.astype(str).str.strip() == "")
-      matches_pattern = ip_series.astype(str).str.match(ipv4_pattern)
-      valid_range = pd.Series([False] * len(df), index=df.index)
-      pattern_matched_indices = df.index[matches_pattern & ~is_empty]
-      for idx in pattern_matched_indices:
-          ip_str = str(ip_series[idx])
-          parts = ip_str.split('.')
-          if all(0 <= int(part) <= 255 for part in parts):
-              valid_range[idx] = True
-
-      mask = ~is_empty & (~matches_pattern | ~valid_range)
+      valid_ip = self._valid_ipv4_mask(df["ip_address"])
+      is_empty = self._is_empty(df["ip_address"])
+      mask = ~is_empty & ~valid_ip
       return self._zeroing(df, mask, IssueType.INVALID_IP_ADDRESS.column)
 
   def _clean_invalid_amount_rub(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       is_empty = (df['amount_rub'].isna()) | (df['amount_rub'] == "")
-      mask = ~(is_empty) & ((df['amount_rub'] < 0.01) | (df['amount_rub'] >= 10_000_000))
-      return self._zeroing(df, mask, IssueType.INVALID_AMOUNT_RUB.column)
+      neg_mask = ~is_empty & (df['amount_rub'] < 0)
+      neg_indices = df.index[neg_mask]
+      if len(neg_indices) > 0:
+          df.loc[neg_indices, 'amount_rub'] = df.loc[neg_indices, 'amount_rub'].abs()
+      mask = ~(is_empty) & ((df['amount_rub'] < 0.01) | (df['amount_rub'] >= 10_000_000_000))
+      df, zero_indices = self._zeroing(df, mask, IssueType.INVALID_AMOUNT_RUB.column)
+      return df, neg_indices.union(zero_indices)
 
   def _clean_invalid_channel(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       is_empty = (df['channel'].isna()) | (df['channel'] == "")
@@ -536,18 +596,30 @@ class DataCleaner:
       return self._deletion(df, mask)
 
   def _clean_event_id_duplicate(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
-      full_duplicates_mask = df.duplicated(keep='first')
-      df_no_full_dups = df[~full_duplicates_mask]
-      if len(df_no_full_dups) == 0:
+      full_duplicates_mask = df.duplicated(keep="first")
+      candidates = df[~full_duplicates_mask]
+      if len(candidates) == 0:
           return df, pd.Index([])
-          
-      bad_indices = df_no_full_dups.index[
-          df_no_full_dups['event_id'].duplicated(keep='first') & 
-          df_no_full_dups['event_id'].notna() & 
-          (df_no_full_dups['event_id'] != "")
-      ]
-      
-      if len(bad_indices) > 0:
-          # IGNORE - мы ничего не делаем с данными, но возвращаем индексы для лога
-          pass
-      return df, bad_indices
+
+      valid_event_id = candidates["event_id"].notna() & (
+          candidates["event_id"].astype(str).str.strip() != ""
+      )
+      dup_mask = candidates["event_id"].duplicated(keep=False) & valid_event_id
+      if not dup_mask.any():
+          return df, pd.Index([])
+
+      dup_groups = candidates.loc[dup_mask]
+      empty_counts = self._empty_field_count(dup_groups)
+
+      indices_to_drop: list = []
+      for _, group in dup_groups.groupby("event_id", sort=False):
+          group_counts = empty_counts.loc[group.index]
+          min_empty = group_counts.min()
+          keep_idx = group_counts[group_counts == min_empty].index[0]
+          indices_to_drop.extend(group.index.difference([keep_idx]))
+
+      if not indices_to_drop:
+          return df, pd.Index([])
+
+      drop_mask = pd.Series(df.index.isin(indices_to_drop), index=df.index)
+      return self._deletion(df, drop_mask)
