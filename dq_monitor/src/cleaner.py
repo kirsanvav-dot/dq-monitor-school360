@@ -553,16 +553,21 @@ class DataCleaner:
       return df, bad_indices
 
   def _clean_invalid_geo_country_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
-      is_empty = (df['geo_country'].isna()) | (df['geo_country'] == "")
-      mask = ~is_empty & ~df['geo_country'].astype(str).isin(ref.GEO_COUNTRY_PATTERN)
-      bad_indices = df.index[mask]
-      if len(bad_indices) > 0:
-          corrected = df.loc[bad_indices, 'geo_country'].astype(str).str.title()
-          df.loc[bad_indices, 'geo_country'] = corrected
-          still_invalid = ~df.loc[bad_indices, 'geo_country'].isin(ref.GEO_COUNTRY_PATTERN)
-          if still_invalid.any():
-              df.loc[bad_indices[still_invalid], 'geo_country'] = np.nan
-      return df, bad_indices
+    series = df['geo_country']
+    is_empty = series.isna() | (series == "")
+
+    lower = series.str.lower()
+    canonical = lower.map(ref.GEO_COUNTRY_BY_LOWER)
+    mask = ~is_empty & (canonical.isna() | (series != canonical))
+    bad_indices = df.index[mask]
+
+    if len(bad_indices) > 0:
+        df.loc[bad_indices, 'geo_country'] = lower.loc[bad_indices].map(ref.GEO_COUNTRY_BY_LOWER)
+        still_invalid = df.loc[bad_indices, 'geo_country'].isna()
+        if still_invalid.any():
+            df.loc[bad_indices[still_invalid], 'geo_country'] = np.nan
+
+    return df, bad_indices
 
   # CONSISTENCY
   def _clean_inconsistency_flagged_field_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
