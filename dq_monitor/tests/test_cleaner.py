@@ -13,7 +13,7 @@ def test_funny_country_corrects(medium_clean_df: pd.DataFrame):
 def test_consistency_flags_right_rows(medium_clean_df: pd.DataFrame):
     df = medium_clean_df.copy()
     
-    df, index = cleaner.DataCleaner._clean_inconsistency_flagged_field_ignore(cleaner.DataCleaner(), df)
+    df, index = cleaner.DataCleaner._clean_inconsistency_flagged_field_zeroing(cleaner.DataCleaner(), df)
     assert len(index) == 0
 
 def test_consistency_ts_dont_breaks(medium_clean_df: pd.DataFrame):
@@ -31,4 +31,4 @@ def test_validity_last4(medium_clean_df: pd.DataFrame):
 
     df, index = cleaner.DataCleaner._clean_invalid_card_last4_correction(cleaner.DataCleaner(), df)
 
-    assert pd.testing.assert_index_equal(index, pd.Index([0, 1]))
+    assert index.equals(pd.Index([0, 1]))

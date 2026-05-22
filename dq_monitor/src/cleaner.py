@@ -541,15 +541,18 @@ class DataCleaner:
       return df, bad_indices
 
   def _clean_invalid_card_last4_correction(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
-      # Политика CORRECTION: только цифры, длина < 4 → дополнение нулями слева ('42' → '0042').
+      # Политика CORRECTION: только цифры, длина < 4 → дополнение нулями слева ('42' → '0042') или зануление, в случаях, когда нельзя исправить.
       txn_mask = df['event_type'] == 'transaction'
       series = df['card_last4'].astype('string')
       is_empty = series.isna() | (series.str.strip() == '')
       is_digits = series.str.match(r'^\d+$', na=False)
       can_pad = txn_mask & ~is_empty & is_digits & (series.str.len() < 4)
-      bad_indices = df.index[can_pad]
-      if len(bad_indices) > 0:
-          df.loc[bad_indices, 'card_last4'] = series.loc[bad_indices].str.zfill(4)
+      zero = txn_mask & ~is_empty & ((series.str.len() > 4) | (~is_digits))
+      bad_indices = df.index[can_pad | zero]
+      if len(can_pad) > 0:
+          df.loc[can_pad, 'card_last4'] = series.loc[can_pad].str.zfill(4)
+      if len(zero) > 0:
+          df.loc[zero, 'card_last4'] = np.nan
       return df, bad_indices
 
   def _clean_invalid_geo_country_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
