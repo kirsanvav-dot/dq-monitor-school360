@@ -391,3 +391,6 @@ GEO_COUNTRY_PATTERN = (
     'Zambia',
     'Zimbabwe'
 )
+
+GEO_COUNTRY_BY_LOWER = {name.lower(): name for name in GEO_COUNTRY_PATTERN}
+GEO_COUNTRY_LOWER = frozenset(GEO_COUNTRY_BY_LOWER)
