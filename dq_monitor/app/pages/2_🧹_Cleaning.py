@@ -36,7 +36,7 @@ DEFAULT_CLEAN_TYPE: dict[IssueType, CleanType] = {
     IssueType.EMPTY_GEO_COUNTRY: CleanType.ZEROING,
     IssueType.EMPTY_GEO_CITY: CleanType.ZEROING,
     IssueType.EMPTY_CHANNEL: CleanType.ZEROING,
-    IssueType.EMPTY_AMOUNT_RUB: CleanType.ZEROING,
+    IssueType.EMPTY_AMOUNT_RUB: CleanType.CORRECTION,
     IssueType.EMPTY_CURRENCY: CleanType.ZEROING,
     IssueType.EMPTY_MERCHANT_CATEGORY: CleanType.ZEROING,
     IssueType.EMPTY_MERCHANT_COUNTRY: CleanType.ZEROING,
@@ -66,7 +66,7 @@ DEFAULT_CLEAN_TYPE: dict[IssueType, CleanType] = {
     IssueType.INCONSISTENCY_SESSION_TIMESTAMPS: CleanType.CORRECTION,
     # Uniqueness
     IssueType.DUPLICATE_FULL: CleanType.DELETE,
-    IssueType.DUPLICATE_EVENT_ID: CleanType.IGNORE,
+    IssueType.DUPLICATE_EVENT_ID: CleanType.DELETE,
 }
 
 
