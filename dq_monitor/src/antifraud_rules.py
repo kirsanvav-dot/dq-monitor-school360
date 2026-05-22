@@ -313,6 +313,10 @@ class ImpossibleGeoRule(BaseRule):
         return mask
     
     def test_haversine(self, df):
+        """
+        Проверка на haversine - высчитываю TP и FP для усиления правила R4
+        (личное тестирование усилеения)
+        """
         real_fraud = pd.read_csv('dq_monitor/data/ground_truth/fraud_labels.csv')
         count_TP = 0; count_hv = 0
         is_transaction = df['event_type'] == 'transaction'
@@ -423,22 +427,22 @@ class RuleEngine():
         return (new_df, rules_info)
 
 # экспериментирую, тестирую
-from data_loader import load_events
-df = load_events('dq_monitor/data/raw/events_dirty.csv')
+# from data_loader import load_events
+# df = load_events('dq_monitor/data/raw/events_dirty.csv')
 # df = 
 
 # rule4 = ImpossibleGeoRule()
 # rule4.test_haversine(df)
 # print(rule4.return_examples(df, mask, 10))
-engine = RuleEngine()
-ans1,ans2 = engine.run_all(df)
+# engine = RuleEngine()
+# ans1,ans2 = engine.run_all(df)
 
-print("Часть итоговой таблицы:")
-print(ans1[ans1['is_fraud_predicted']].sample(25))
-print()
-print("Данные относительно каждого правила:")
-print(ans2)
-print()
+# print("Часть итоговой таблицы:")
+# print(ans1[ans1['is_fraud_predicted']].sample(25))
+# print()
+# print("Данные относительно каждого правила:")
+# print(ans2)
+# print()
 
 # df = load_events('test_data_strange_timestamps.csv')
 # rule1 = CarouselRule()
