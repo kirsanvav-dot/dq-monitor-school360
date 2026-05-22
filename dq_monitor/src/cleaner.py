@@ -72,10 +72,10 @@ import src.reference_data as ref
 from src.constant_issue import IssueType, DQDimension, CleanType
 
 PIPELINE_ORDER = {
-    CleanType.DELETE: 1,      # Сначала выкидываем мусор (уменьшаем объем df)
-    CleanType.ZEROING: 2,     # Затем зачищаем невалидные поля
-    CleanType.CORRECTION: 3,  # Затем тратим ресурсы на сложный маппинг
-    CleanType.IGNORE: 4,      # Игнорируемые можно ставить в самый конец (или вообще не передавать)
+    CleanType.DELETE: 4,      # Сначала выкидываем мусор (уменьшаем объем df)
+    CleanType.ZEROING: 1,     # Затем зачищаем невалидные поля
+    CleanType.CORRECTION: 2,  # Затем тратим ресурсы на сложный маппинг
+    CleanType.IGNORE: 3,      # Игнорируемые можно ставить в самый конец (или вообще не передавать)
 }
 
 checks_to_run: list[IssueType] = [
