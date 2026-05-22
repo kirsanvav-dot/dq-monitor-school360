@@ -52,7 +52,7 @@ DEFAULT_CLEAN_TYPE: dict[IssueType, CleanType] = {
     IssueType.INVALID_SESSION_START_TS: CleanType.ZEROING,
     IssueType.INVALID_SESSION_END_TS: CleanType.ZEROING,
     IssueType.INVALID_IP_ADDRESS: CleanType.ZEROING,
-    IssueType.INVALID_AMOUNT_RUB: CleanType.ZEROING,
+    IssueType.INVALID_AMOUNT_RUB: CleanType.CORRECTION,
     IssueType.INVALID_CURRENCY: CleanType.CORRECTION,
     IssueType.INVALID_MERCHANT_CATEGORY: CleanType.CORRECTION,
     IssueType.INVALID_CARD_LAST4: CleanType.CORRECTION,
@@ -60,13 +60,13 @@ DEFAULT_CLEAN_TYPE: dict[IssueType, CleanType] = {
     IssueType.INVALID_GEO_COUNTRY: CleanType.ZEROING,
     IssueType.INVALID_CHANNEL: CleanType.ZEROING,
     # Consistency
-    IssueType.INCONSISTENCY_FLAGGED: CleanType.IGNORE,
+    IssueType.INCONSISTENCY_FLAGGED: CleanType.ZEROING,
     IssueType.INCONSISTENCY_TRANSACTION: CleanType.CORRECTION,
     IssueType.INCONSISTENCY_SESSION: CleanType.CORRECTION,
     IssueType.INCONSISTENCY_SESSION_TIMESTAMPS: CleanType.CORRECTION,
     # Uniqueness
     IssueType.DUPLICATE_FULL: CleanType.DELETE,
-    IssueType.DUPLICATE_EVENT_ID: CleanType.IGNORE,
+    IssueType.DUPLICATE_EVENT_ID: CleanType.DELETE,
 }
 
 

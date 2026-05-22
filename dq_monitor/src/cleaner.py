@@ -285,6 +285,14 @@ class DataCleaner:
                   df.loc[bad_indices, col] = np.nan
       return df, bad_indices
 
+  def _correct_amount_rub(self, df: pd.DataFrame, mask: pd.Series, columns: tuple) -> Tuple[pd.DataFrame, pd.Index]:
+      negative_mask = (df['amount_rub'] < 0) & mask
+      upper_mask = (df['amount_rub'] > 10_000_000) & mask
+      bad_indices = df[negative_mask | upper_mask].index
+      df.loc[negative_mask, 'amount_rub'] = df.loc[negative_mask, 'amount_rub'].abs()
+      df.loc[upper_mask, 'amount_rub'] = df.loc[upper_mask, 'amount_rub'] / 100
+      return df, bad_indices
+
   def _deletion(self, df: pd.DataFrame, mask: pd.Series) -> Tuple[pd.DataFrame, pd.Index]:
       """Вспомогательный метод для удаления строк по маске."""
       bad_indices = df[mask].index
@@ -489,6 +497,11 @@ class DataCleaner:
       mask = ~(is_empty) & ((df['amount_rub'] < 0.01) | (df['amount_rub'] >= 10_000_000))
       return self._zeroing(df, mask, IssueType.INVALID_AMOUNT_RUB.column)
 
+  def _clean_invalid_amount_rub_correction(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      is_empty = (df['amount_rub'].isna()) | (df['amount_rub'] == "")
+      mask = ~(is_empty)
+      return self._correct_amount_rub(df, mask, IssueType.INVALID_AMOUNT_RUB.column)
+
   def _clean_invalid_channel_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       is_empty = (df['channel'].isna()) | (df['channel'] == "")
       mask = ~is_empty & ~df['channel'].astype(str).isin(ref.VALID_CHANNELS)
@@ -528,31 +541,39 @@ class DataCleaner:
       return df, bad_indices
 
   def _clean_invalid_card_last4_correction(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
-      # Политика CORRECTION: только цифры, длина < 4 → дополнение нулями слева ('42' → '0042').
+      # Политика CORRECTION: только цифры, длина < 4 → дополнение нулями слева ('42' → '0042') или зануление, в случаях, когда нельзя исправить.
       txn_mask = df['event_type'] == 'transaction'
       series = df['card_last4'].astype('string')
       is_empty = series.isna() | (series.str.strip() == '')
       is_digits = series.str.match(r'^\d+$', na=False)
       can_pad = txn_mask & ~is_empty & is_digits & (series.str.len() < 4)
-      bad_indices = df.index[can_pad]
-      if len(bad_indices) > 0:
-          df.loc[bad_indices, 'card_last4'] = series.loc[bad_indices].str.zfill(4)
+      zero = txn_mask & ~is_empty & ((series.str.len() > 4) | (~is_digits))
+      bad_indices = df.index[can_pad | zero]
+      if len(can_pad) > 0:
+          df.loc[can_pad, 'card_last4'] = series.loc[can_pad].str.zfill(4)
+      if len(zero) > 0:
+          df.loc[zero, 'card_last4'] = np.nan
       return df, bad_indices
 
   def _clean_invalid_geo_country_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
-      is_empty = (df['geo_country'].isna()) | (df['geo_country'] == "")
-      mask = ~is_empty & ~df['geo_country'].astype(str).isin(ref.GEO_COUNTRY_PATTERN)
-      bad_indices = df.index[mask]
-      if len(bad_indices) > 0:
-          corrected = df.loc[bad_indices, 'geo_country'].astype(str).str.title()
-          df.loc[bad_indices, 'geo_country'] = corrected
-          still_invalid = ~df.loc[bad_indices, 'geo_country'].isin(ref.GEO_COUNTRY_PATTERN)
-          if still_invalid.any():
-              df.loc[bad_indices[still_invalid], 'geo_country'] = np.nan
-      return df, bad_indices
+    series = df['geo_country']
+    is_empty = series.isna() | (series == "")
+
+    lower = series.str.lower()
+    canonical = lower.map(ref.GEO_COUNTRY_BY_LOWER)
+    mask = ~is_empty & (canonical.isna() | (series != canonical))
+    bad_indices = df.index[mask]
+
+    if len(bad_indices) > 0:
+        df.loc[bad_indices, 'geo_country'] = lower.loc[bad_indices].map(ref.GEO_COUNTRY_BY_LOWER)
+        still_invalid = df.loc[bad_indices, 'geo_country'].isna()
+        if still_invalid.any():
+            df.loc[bad_indices[still_invalid], 'geo_country'] = np.nan
+
+    return df, bad_indices
 
   # CONSISTENCY
-  def _clean_inconsistency_flagged_field_ignore(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+  def _clean_inconsistency_flagged_field_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       is_empty = (df['flag_reason'].isna()) | (df['flag_reason'] == "")
       mask = (df['is_flagged'] == False) & ~is_empty
       # We just want to zero flag_reason, so we pass it explicitly.
@@ -618,3 +639,38 @@ class DataCleaner:
           # IGNORE - мы ничего не делаем с данными, но возвращаем индексы для лога
           pass
       return df, bad_indices
+
+  def _clean_event_id_duplicate_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      full_duplicates_mask = df.duplicated(keep='first')
+      df_no_full_dups = df[~full_duplicates_mask]
+      event_id_counts = df_no_full_dups['event_id'].value_counts()
+      duplicate_event_ids = event_id_counts[event_id_counts > 1].index.tolist()
+      if not duplicate_event_ids:
+          return df, pd.Index([])
+      rows_to_delete = pd.Series(False, index=df.index)
+      for event_id in duplicate_event_ids:
+          event_rows = df_no_full_dups[df_no_full_dups['event_id'] == event_id]
+          indices = event_rows.index.tolist()
+          if len(indices) <= 1:
+              continue
+          best_idx = None
+          min_empty = float('inf')
+          for idx in indices:
+              row = event_rows.loc[idx]
+              empty_count = 0
+              for col in df.columns:
+                  if col == 'event_id':
+                      continue
+                  val = row[col]
+                  if pd.isna(val) or val == "":
+                      empty_count += 1
+              if empty_count < min_empty:
+                  min_empty = empty_count
+                  best_idx = idx
+
+          for idx in indices:
+              if idx != best_idx:
+                  rows_to_delete[idx] = True
+      removed_indices = df.index[rows_to_delete]
+      df_cleaned = df[~rows_to_delete]
+      return df_cleaned, removed_indices
