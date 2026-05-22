@@ -75,7 +75,7 @@ class IssueType(Enum):
     INVALID_SESSION_END_TS = ('invalid_session_end_ts', "Некорректный формат session_end_ts",
                               DQDimension.VALIDITY, ('session_end_ts',), (CleanType.ZEROING,))
     INVALID_IP_ADDRESS = ("invalid_ip_address", "Некорректный формат ip-адреса", DQDimension.VALIDITY, ('ip_address',), (CleanType.ZEROING,))
-    INVALID_AMOUNT_RUB = ("invalid_amount_rub", "Выход за пределы допустимых значений amount_rub", DQDimension.VALIDITY, ('amount_rub',), (CleanType.ZEROING,))
+    INVALID_AMOUNT_RUB = ("invalid_amount_rub", "Выход за пределы допустимых значений amount_rub", DQDimension.VALIDITY, ('amount_rub',), (CleanType.ZEROING, CleanType.CORRECTION))
     INVALID_CURRENCY = ("invalid_currency", "Некорректный формат значения currency", DQDimension.VALIDITY, ('currency',), (CleanType.CORRECTION,))
     INVALID_MERCHANT_CATEGORY = ("invalid_merchant_category", "Некорректный формат merchant_category",
                                  DQDimension.VALIDITY, ('merchant_category',), (CleanType.CORRECTION,))
@@ -87,7 +87,7 @@ class IssueType(Enum):
                        DQDimension.VALIDITY, ('channel',), (CleanType.ZEROING,))
     # CONSISTENCY
     INCONSISTENCY_FLAGGED = ('inconsistency_flagged_field', "Несогласованны поля is_flagged и flagged_reason",
-                             DQDimension.CONSISTENCY, ('is_flagged', 'flagged_reason'), (CleanType.IGNORE,))
+                             DQDimension.CONSISTENCY, ('is_flagged', 'flagged_reason'), (CleanType.ZEROING,))
     INCONSISTENCY_TRANSACTION = ('inconsistency_transaction_field',
                                  "При типе операции transaction заполнены поля, соответствующие типу session",
                                  DQDimension.CONSISTENCY, ('event_type', 'session_start_ts', 'session_end_ts', 'login_success', 'auth_method'), (CleanType.CORRECTION,))
@@ -102,7 +102,7 @@ class IssueType(Enum):
     # UNIQUENESS
     DUPLICATE_FULL = ('full_duplicate', 'Наличие дубликатов строк', DQDimension.UNIQUENESS, (ALL,), (CleanType.DELETE,))
     DUPLICATE_EVENT_ID = ('event_id_duplicate', 'Не уникальный event_id при различных операциях',
-                          DQDimension.UNIQUENESS, ('event_id',), (CleanType.IGNORE,))
+                          DQDimension.UNIQUENESS, ('event_id',), (CleanType.IGNORE, CleanType.DELETE,))
     @property
     def method_name(self) -> str:
         """Служебное имя, используется для поиска метода (например, 'bad_format_date')."""

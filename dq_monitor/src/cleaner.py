@@ -285,6 +285,14 @@ class DataCleaner:
                   df.loc[bad_indices, col] = np.nan
       return df, bad_indices
 
+  def _correct_amount_rub(self, df: pd.DataFrame, mask: pd.Series, columns: tuple) -> Tuple[pd.DataFrame, pd.Index]:
+      negative_mask = (df['amount_rub'] < 0) & mask
+      upper_mask = (df['amount_rub'] > 10_000_000) & mask
+      bad_indices = df[negative_mask | upper_mask].index
+      df.loc[negative_mask, 'amount_rub'] = df.loc[negative_mask, 'amount_rub'].abs()
+      df.loc[upper_mask, 'amount_rub'] = df.loc[upper_mask, 'amount_rub'] / 100
+      return df, bad_indices
+
   def _deletion(self, df: pd.DataFrame, mask: pd.Series) -> Tuple[pd.DataFrame, pd.Index]:
       """Вспомогательный метод для удаления строк по маске."""
       bad_indices = df[mask].index
@@ -489,6 +497,11 @@ class DataCleaner:
       mask = ~(is_empty) & ((df['amount_rub'] < 0.01) | (df['amount_rub'] >= 10_000_000))
       return self._zeroing(df, mask, IssueType.INVALID_AMOUNT_RUB.column)
 
+  def _clean_invalid_amount_rub_correction(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      is_empty = (df['amount_rub'].isna()) | (df['amount_rub'] == "")
+      mask = ~(is_empty)
+      return self._correct_amount_rub(df, mask, IssueType.INVALID_AMOUNT_RUB.column)
+
   def _clean_invalid_channel_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       is_empty = (df['channel'].isna()) | (df['channel'] == "")
       mask = ~is_empty & ~df['channel'].astype(str).isin(ref.VALID_CHANNELS)
@@ -552,7 +565,7 @@ class DataCleaner:
       return df, bad_indices
 
   # CONSISTENCY
-  def _clean_inconsistency_flagged_field_ignore(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+  def _clean_inconsistency_flagged_field_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       is_empty = (df['flag_reason'].isna()) | (df['flag_reason'] == "")
       mask = (df['is_flagged'] == False) & ~is_empty
       # We just want to zero flag_reason, so we pass it explicitly.
@@ -618,3 +631,38 @@ class DataCleaner:
           # IGNORE - мы ничего не делаем с данными, но возвращаем индексы для лога
           pass
       return df, bad_indices
+
+  def _clean_event_id_duplicate_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      full_duplicates_mask = df.duplicated(keep='first')
+      df_no_full_dups = df[~full_duplicates_mask]
+      event_id_counts = df_no_full_dups['event_id'].value_counts()
+      duplicate_event_ids = event_id_counts[event_id_counts > 1].index.tolist()
+      if not duplicate_event_ids:
+          return df, pd.Index([])
+      rows_to_delete = pd.Series(False, index=df.index)
+      for event_id in duplicate_event_ids:
+          event_rows = df_no_full_dups[df_no_full_dups['event_id'] == event_id]
+          indices = event_rows.index.tolist()
+          if len(indices) <= 1:
+              continue
+          best_idx = None
+          min_empty = float('inf')
+          for idx in indices:
+              row = event_rows.loc[idx]
+              empty_count = 0
+              for col in df.columns:
+                  if col == 'event_id':
+                      continue
+                  val = row[col]
+                  if pd.isna(val) or val == "":
+                      empty_count += 1
+              if empty_count < min_empty:
+                  min_empty = empty_count
+                  best_idx = idx
+
+          for idx in indices:
+              if idx != best_idx:
+                  rows_to_delete[idx] = True
+      removed_indices = df.index[rows_to_delete]
+      df_cleaned = df[~rows_to_delete]
+      return df_cleaned, removed_indices
