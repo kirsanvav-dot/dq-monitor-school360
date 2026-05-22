@@ -79,7 +79,7 @@ class IssueType(Enum):
                                  DQDimension.VALIDITY, ('merchant_category',), CleanType.CORRECTION)
     INVALID_CARD_LAST4 = ("invalid_card_last4", "Некорректный формат card_last4", DQDimension.VALIDITY, ('card_last4',), CleanType.CORRECTION)
     INVALID_DEVICE_TYPE = ("invalid_device_type", "Некорректный формат device_type", DQDimension.VALIDITY, ('device_type',), CleanType.CORRECTION)
-    INVALID_GEO_COUNTRY = ("invalid_geo_country", "Некорректный формат geo_country)",
+    INVALID_GEO_COUNTRY = ("invalid_geo_country", "Некорректный формат geo_country",
                            DQDimension.VALIDITY, ('geo_country',), CleanType.ZEROING)
     INVALID_CHANNEL = ("invalid_channel", "Значение channel не входит в допустимые каналы",
                        DQDimension.VALIDITY, ('channel',), CleanType.ZEROING)

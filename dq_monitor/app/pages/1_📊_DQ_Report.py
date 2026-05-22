@@ -14,28 +14,26 @@ from src.viz import plot_dq_score_radar, plot_issues_breakdown
 
 st.set_page_config(page_title="Отчет DQ", layout="wide")
 
-# Глобальные стили Arial 15/22
+# --- ГЛОБАЛЬНЫЕ СТИЛИ: Arial + Центрирование ячеек ---
 st.markdown("""
 <style>
     html, body, [class*="css"] { font-family: Arial, sans-serif !important; font-size: 15px !important; }
     h1 { font-size: 22px !important; font-weight: bold !important; }
+
+    /* Центрирование текста во всех таблицах приложения */
+    [data-testid="stTable"] td, [data-testid="stTable"] th { 
+        text-align: center !important; 
+        vertical-align: middle !important; 
+    }
     .stMetric label { font-size: 15px !important; }
 </style>
 """, unsafe_allow_html=True)
 
 
-# --- КЕШИРОВАНИЕ ВЫЧИСЛЕНИЙ ---
-@st.cache_data(show_spinner="Анализ качества данных (профилирование)...")
+@st.cache_data(show_spinner="Анализ качества данных...")
 def get_cached_report(df):
-    """Кешируем поиск проблем в датасете."""
     profiler = DataProfiler()
     return profiler.profile(df)
-
-
-@st.cache_data(show_spinner="Расчет DQ-метрик...")
-def get_cached_score(_df, _report):
-    """Кешируем расчет финальных скоров."""
-    return compute_dq_score(_df, _report)
 
 
 if "df_dirty" not in st.session_state:
@@ -45,14 +43,13 @@ if "df_dirty" not in st.session_state:
 df = st.session_state["df_dirty"]
 st.title("📊 Отчет по качеству данных (DQ Report)")
 
-# Вызов кешированных функций
 report = get_cached_report(df)
-score = get_cached_score(df, report)
+score = compute_dq_score(df, report)
 
-# Сохраняем Score до очистки (для страницы Cleaning)
+# Сохраняем Score для страницы Cleaning
 st.session_state["dq_score_before"] = score.total * 100
 
-# --- БЛОК 1: Метрики (Согласованность) ---
+# --- БЛОК 1: Метрики (На русском) ---
 st.subheader("📈 Ключевые показатели качества")
 cols = st.columns(5)
 cols[0].metric("Итоговый DQ Score", f"{score.total:.3f}")
@@ -66,37 +63,29 @@ st.divider()
 # --- БЛОК 2: Графики ---
 col_left, col_right = st.columns(2)
 with col_left:
-    # Радар (английские оси внутри viz.py)
+    # Радар (английские оси зашиты в viz.py)
     st.plotly_chart(plot_dq_score_radar(score.to_dict()), use_container_width=True)
 with col_right:
-    # Распределение типов ошибок
+    # Бар-чарт (английские категории зашиты в viz.py)
     st.plotly_chart(plot_issues_breakdown(report.to_dataframe()), use_container_width=True)
 
 st.divider()
 
-# --- БЛОК 3: Таблица ---
+# --- БЛОК 3: Таблица (С центрированием и английскими строками) ---
 st.subheader("📋 Детальный список найденных проблем")
 rep_df = report.to_dataframe()
 
 if not rep_df.empty:
-    # Перевод измерений для таблицы
-    dim_ru = {
-        "Completeness": "Полнота",
-        "Validity": "Валидность",
-        "Consistency": "Согласованность",
-        "Uniqueness": "Уникальность"
-    }
-    rep_df["dimension"] = rep_df["dimension"].replace(dim_ru)
-
-    # Оформление колонок
-    display_df = rep_df.drop(columns=['issue_type']).rename(columns={
+    # 1. Удаляем колонку 'column' (Затронутые столбцы) по требованию
+    # 2. Переименовываем заголовки, оставляя содержимое dimension на английском
+    display_df = rep_df.drop(columns=['issue_type', 'column']).rename(columns={
         'dimension': 'Измерение',
-        'column': 'Столбцы',
         'description': 'Описание проблемы',
         'rows_affected': 'Затронуто строк',
         'percent_affected': '%'
     })
-
-    st.dataframe(display_df, use_container_width=True, hide_index=True)
+    display_df.index = range(1, len(display_df) + 1)
+    # Используем st.table для идеального центрирования через CSS
+    st.table(display_df)
 else:
-    st.success("🎉 Проблем не обнаружено! Данные соответствуют всем проверкам.")
+    st.success("🎉 Проблем не обнаружено!")
