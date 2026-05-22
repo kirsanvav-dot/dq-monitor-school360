@@ -73,7 +73,7 @@ class IssueType(Enum):
     INVALID_SESSION_END_TS = ('invalid_session_end_ts', "Некорректный формат session_end_ts",
                               DQDimension.VALIDITY, ('session_end_ts',), CleanType.ZEROING)
     INVALID_IP_ADDRESS = ("invalid_ip_address", "Некорректный формат ip-адреса", DQDimension.VALIDITY, ('ip_address',), CleanType.ZEROING)
-    INVALID_AMOUNT_RUB = ("invalid_amount_rub", "Выход за пределы допустимых значений amount_rub", DQDimension.VALIDITY, ('amount_rub',), CleanType.ZEROING)
+    INVALID_AMOUNT_RUB = ("invalid_amount_rub", "Выход за пределы допустимых значений amount_rub", DQDimension.VALIDITY, ('amount_rub',), CleanType.CORRECTION)
     INVALID_CURRENCY = ("invalid_currency", "Некорректный формат значения currency", DQDimension.VALIDITY, ('currency',), CleanType.CORRECTION)
     INVALID_MERCHANT_CATEGORY = ("invalid_merchant_category", "Некорректный формат merchant_category",
                                  DQDimension.VALIDITY, ('merchant_category',), CleanType.CORRECTION)

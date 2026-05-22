@@ -72,8 +72,8 @@ import src.reference_data as ref
 from src.constant_issue import IssueType, DQDimension, CleanType
 
 PIPELINE_ORDER = {
-    CleanType.DELETE: 4,      # Сначала выкидываем мусор (уменьшаем объем df)
-    CleanType.ZEROING: 1,     # Затем зачищаем невалидные поля
+    CleanType.DELETE: 4,      # выкидываем мусор (уменьшаем объем df)
+    CleanType.ZEROING: 1,     # Сначала зачищаем невалидные поля
     CleanType.CORRECTION: 2,  # Затем тратим ресурсы на сложный маппинг
     CleanType.IGNORE: 3,      # Игнорируемые можно ставить в самый конец (или вообще не передавать)
 }
@@ -294,6 +294,14 @@ class DataCleaner:
                   df.loc[bad_indices, col] = np.nan
       return df, bad_indices
 
+  def _correct_amount_rub(self,df: pd.DataFrame, mask: pd.Series, columns: tuple) -> Tuple[pd.DataFrame, pd.Index]:
+      negative_mask = (df['amount_rub'] < 0) & mask
+      upper_mask = (df['amount_rub'] > 10_000_000) & mask
+      bad_indices = df[negative_mask | upper_mask].index
+      df.loc[negative_mask, 'amount_rub'] = df.loc[negative_mask, 'amount_rub'].abs()
+      df.loc[upper_mask, 'amount_rub'] = df.loc[upper_mask, 'amount_rub'] / 100
+      return df, bad_indices
+
   def _deletion(self, df: pd.DataFrame, mask: pd.Series) -> Tuple[pd.DataFrame, pd.Index]:
       """Вспомогательный метод для удаления строк по маске."""
       bad_indices = df[mask].index
@@ -419,8 +427,8 @@ class DataCleaner:
 
   def _clean_invalid_amount_rub(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       is_empty = (df['amount_rub'].isna()) | (df['amount_rub'] == "")
-      mask = ~(is_empty) & ((df['amount_rub'] < 0.01) | (df['amount_rub'] >= 10_000_000))
-      return self._zeroing(df, mask, IssueType.INVALID_AMOUNT_RUB.column)
+      mask = ~(is_empty)
+      return self._correct_amount_rub(df, mask, IssueType.INVALID_AMOUNT_RUB.column)
 
   def _clean_invalid_channel(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       is_empty = (df['channel'].isna()) | (df['channel'] == "")
