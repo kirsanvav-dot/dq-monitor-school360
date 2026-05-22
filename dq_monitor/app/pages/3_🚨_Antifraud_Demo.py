@@ -92,11 +92,17 @@ cm_dirty, cm_clean, comp, r_dirty, r_clean = get_full_antifraud_analysis(
 
 # --- БЛОК 3: БИЗНЕС-МЕТРИКИ ---
 st.header("2. Сравнение эффективности системы")
-money_saved = comp["delta"]["tp"] * 85000
+
+# Абсолютное снижение пропусков (FN) – положительная величина
+fn_reduction = -comp["delta"]["fn"]   # т.к. delta["fn"] = FN_after - FN_before < 0 при улучшении
+
+# Общая экономия = (доп. пойманные TP + переставшие пропускаться FN) × стоимость одного фрода
+total_frauds_prevented = comp["delta"]["tp"] + fn_reduction
+money_saved = total_frauds_prevented * 85000
 
 m1, m2, m3, m4 = st.columns(4)
 m1.metric("Доп. поймано фрода", f"+{comp['delta']['tp']} шт")
-m2.metric("Снижение пропусков", f"{comp['delta']['fn']} шт", delta_color="inverse")
+m2.metric("Снижение пропусков", f"{fn_reduction} шт", delta_color="normal")   # теперь положительное число
 m3.metric("Прирост Recall", f"+{comp['delta']['recall_pp']}%")
 m4.metric("Экономия (прогноз)", f"{money_saved:,.0f} ₽", delta="Profit")
 
