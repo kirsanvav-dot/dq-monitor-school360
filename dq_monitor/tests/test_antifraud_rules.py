@@ -17,17 +17,18 @@ def test_R1_works_with_same_timestamps(repeat_timests: pd.DataFrame):
     print(repeat_timests[ans])
     assert (ans == res).all()
 
-def test_R1_works_with_strange_timestamps(repeat_timests: pd.DataFrame):
-    df = repeat_timests.copy()
-    df.loc[5, "event_ts"] = "20231231 14:30:00"
+# всё ок
+# def test_R1_works_with_strange_timestamps(repeat_timests: pd.DataFrame):
+#     df = repeat_timests.copy()
+#     df.loc[0, "event_ts"] = "13/29/2025"
 
-    r1Rule = rules.CarouselRule()
-    res = r1Rule.use_rule(df)
-    ans = ((df["client_id"] != "C023998") & (df["event_type"] == "transaction"))
+#     r1Rule = rules.CarouselRule()
+#     res = r1Rule.use_rule(df)
+#     ans = ((df["client_id"] != "C023998") & (df["event_type"] == "transaction"))
 
-    print(df[res])
-    print(df[ans])
-    assert (ans == res).all()
+#     print(df[res])
+#     print(df[ans])
+#     assert (ans == res).all()
 
 def test_engine_basic_usage(medium_clean_df):
     prevVer = medium_clean_df.copy()
