@@ -2,8 +2,9 @@
 
 | Дата | Severity | Описание | Где | Кто чинит | Статус |
 |------|----------|----------|-----|-----------|--------|
-| 20.05.2026 | High | R1 правило не учитывает разные форматы времени | antifraud_rules.py | AF | open |
-| 20.05.2026 | High | R1 правило учитывает session | antifraud_rules.py | AF | open |
+| 20.05.2026 | High | R1 правило не учитывает разные форматы времени | antifraud_rules.py | AF | close |
+| 20.05.2026 | High | R1 правило учитывает session | antifraud_rules.py | AF | close |
+| 21.05.2026 | Low | _clean_invalid_geo_country не фиксит некоторые страны из-за высот букв | BE | open |
 
 ## Severity
 - **Critical** — приложение не запускается / падает в demo-сценарии
