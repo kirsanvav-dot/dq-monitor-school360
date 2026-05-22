@@ -97,6 +97,37 @@ st.markdown("""
         text-align: center !important; 
         vertical-align: middle !important; 
     }
+
+    /* Таблица правил очистки */
+    .clean-rules-header {
+        font-weight: bold;
+        font-size: 13px;
+        padding: 6px 4px;
+        border-bottom: 2px solid #ccc;
+        margin-bottom: 4px;
+    }
+    .clean-rules-row {
+        padding: 6px 4px;
+        border-bottom: 1px solid #eee;
+        min-height: 2.4rem;
+        white-space: normal;
+        word-wrap: break-word;
+        line-height: 1.4;
+        font-size: 14px;
+    }
+    /* Selectbox на всю ширину колонки, без обрезки подписи */
+    div[data-testid="column"] [data-testid="stSelectbox"] {
+        width: 100% !important;
+    }
+    div[data-testid="column"] [data-testid="stSelectbox"] > div {
+        width: 100% !important;
+    }
+    div[data-testid="column"] [data-testid="stSelectbox"] [data-baseweb="select"] {
+        width: 100% !important;
+    }
+    div[data-testid="column"] [data-testid="stSelectbox"] div[role="combobox"] {
+        white-space: normal !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -128,30 +159,81 @@ if "df_dirty" not in st.session_state:
 
 df_dirty = st.session_state["df_dirty"]
 
-# --- БЛОК 1: НАСТРОЙКА ПРАВИЛ ---
+# --- БЛОК 1: НАСТРОЙКА ПРАВИЛ (табличный вид) ---
 st.subheader("⚙️ Настройка правил очистки")
 
 enabled_rules: list[tuple[IssueType, CleanType]] = []
-cols = st.columns(4)
 
-for i, dim_enum in enumerate(DQDimension):
-    with cols[i]:
-        st.markdown(f"**{dim_enum.value}**")
+# Дефолт чекбоксов только через session_state (без value= у виджета — иначе конфликт с «Снять все»)
+for _issue in IssueType:
+    _cb_key = f"cb_{_issue.name}"
+    if _cb_key not in st.session_state:
+        st.session_state[_cb_key] = True
 
-        issues_in_dim = [it for it in IssueType if it.dimension == dim_enum.value]
-        for issue in issues_in_dim:
-            if st.checkbox(issue.description, value=True, key=f"cb_{issue.name}"):
-                labels = _labels_for_issue(issue)
-                label_map = _label_to_clean_type(issue)
-                default_label = CLEAN_TYPE_LABELS[_default_clean_type(issue)]
+# Полная ширина: ✓ | Проблема | Способ
+_COL_ENABLED = 0.04
+_COL_DESC = 0.56
+_COL_ACTION = 0.40
 
-                selected_label = st.selectbox(
-                    "Способ исправления",
-                    options=labels,
-                    index=labels.index(default_label),
-                    key=f"action_{issue.name}",
-                )
-                enabled_rules.append((issue, label_map[selected_label]))
+for dim_enum in DQDimension:
+    issues_in_dim = [it for it in IssueType if it.dimension == dim_enum.value]
+
+    title_col, btn_col = st.columns([0.78, 0.22])
+    with title_col:
+        st.markdown(f"#### {dim_enum.value}")
+    with btn_col:
+        sel_all_btn, sel_none_btn = st.columns(2)
+        with sel_all_btn:
+            if st.button(
+                "Все",
+                key=f"sel_all_{dim_enum.name}",
+                use_container_width=True,
+            ):
+                for issue in issues_in_dim:
+                    st.session_state[f"cb_{issue.name}"] = True
+        with sel_none_btn:
+            if st.button(
+                "Снять",
+                key=f"sel_none_{dim_enum.name}",
+                use_container_width=True,
+            ):
+                for issue in issues_in_dim:
+                    st.session_state[f"cb_{issue.name}"] = False
+
+    hdr = st.columns([_COL_ENABLED, _COL_DESC, _COL_ACTION])
+    hdr[0].markdown('<div class="clean-rules-header">✓</div>', unsafe_allow_html=True)
+    hdr[1].markdown('<div class="clean-rules-header">Проблема</div>', unsafe_allow_html=True)
+    hdr[2].markdown('<div class="clean-rules-header">Способ исправления</div>', unsafe_allow_html=True)
+
+    for issue in issues_in_dim:
+        row = st.columns([_COL_ENABLED, _COL_DESC, _COL_ACTION])
+        labels = _labels_for_issue(issue)
+        label_map = _label_to_clean_type(issue)
+        default_label = CLEAN_TYPE_LABELS[_default_clean_type(issue)]
+
+        with row[0]:
+            enabled = st.checkbox(
+                "вкл",
+                key=f"cb_{issue.name}",
+                label_visibility="collapsed",
+            )
+        with row[1]:
+            st.markdown(
+                f'<div class="clean-rules-row">{issue.description}</div>',
+                unsafe_allow_html=True,
+            )
+        with row[2]:
+            selected_label = st.selectbox(
+                "Способ",
+                options=labels,
+                index=labels.index(default_label),
+                key=f"action_{issue.name}",
+                label_visibility="collapsed",
+                disabled=not enabled,
+            )
+
+        if enabled:
+            enabled_rules.append((issue, label_map[selected_label]))
 
 st.divider()
 
