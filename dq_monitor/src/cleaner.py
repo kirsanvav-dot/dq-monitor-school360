@@ -297,6 +297,14 @@ class DataCleaner:
       mask = (df['event_id'].isnull()) | (df['event_id'] == "")
       return self._deletion(df, mask)
 
+  def _clean_empty_event_id_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['event_id'].isnull()) | (df['event_id'] == "")
+      return self._zeroing(df, mask, IssueType.EMPTY_EVENT_ID.column)
+
+  def _clean_empty_client_id_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['client_id'].isnull()) | (df['client_id'] == "")
+      return self._deletion(df, mask)
+
   def _clean_empty_client_id_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       mask = (df['client_id'].isnull()) | (df['client_id'] == "")
       return self._zeroing(df, mask, IssueType.EMPTY_CLIENT_ID.column)
@@ -305,65 +313,133 @@ class DataCleaner:
       mask = (df['event_type'].isnull()) | (df['event_type'] == "")
       return self._deletion(df, mask)
 
+  def _clean_empty_event_type_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['event_type'].isnull()) | (df['event_type'] == "")
+      return self._zeroing(df, mask, IssueType.EMPTY_EVENT_TYPE.column)
+
+  def _clean_empty_event_ts_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['event_ts'].isnull()) | (df['event_ts'] == "")
+      return self._deletion(df, mask)
+
   def _clean_empty_event_ts_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       mask = (df['event_ts'].isnull()) | (df['event_ts'] == "")
       return self._zeroing(df, mask, IssueType.EMPTY_EVENT_TS.column)
+
+  def _clean_empty_device_type_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['device_type'].isnull()) | (df['device_type'] == "")
+      return self._deletion(df, mask)
 
   def _clean_empty_device_type_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       mask = (df['device_type'].isnull()) | (df['device_type'] == "")
       return self._zeroing(df, mask, IssueType.EMPTY_DEVICE_TYPE.column)
 
+  def _clean_empty_ip_address_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['ip_address'].isnull()) | (df['ip_address'] == "")
+      return self._deletion(df, mask)
+
   def _clean_empty_ip_address_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       mask = (df['ip_address'].isnull()) | (df['ip_address'] == "")
       return self._zeroing(df, mask, IssueType.EMPTY_IP_ADDRESS.column)
+
+  def _clean_empty_geo_country_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['geo_country'].isnull()) | (df['geo_country'] == "")
+      return self._deletion(df, mask)
 
   def _clean_empty_geo_country_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       mask = (df['geo_country'].isnull()) | (df['geo_country'] == "")
       return self._zeroing(df, mask, IssueType.EMPTY_GEO_COUNTRY.column)
 
+  def _clean_empty_geo_city_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['geo_city'].isnull()) | (df['geo_city'] == "")
+      return self._deletion(df, mask)
+
   def _clean_empty_geo_city_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       mask = (df['geo_city'].isnull()) | (df['geo_city'] == "")
       return self._zeroing(df, mask, IssueType.EMPTY_GEO_CITY.column)
+
+  def _clean_empty_channel_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['channel'].isnull()) | (df['channel'] == "")
+      return self._deletion(df, mask)
 
   def _clean_empty_channel_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       mask = (df['channel'].isnull()) | (df['channel'] == "")
       return self._zeroing(df, mask, IssueType.EMPTY_CHANNEL.column)
 
+  def _clean_empty_amount_rub_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = ((df['amount_rub'].isnull()) | (df['amount_rub'] == "")) & (df['event_type'] == "transaction")
+      return self._deletion(df, mask)
+
   def _clean_empty_amount_rub_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       mask = ((df['amount_rub'].isnull()) | (df['amount_rub'] == "")) & (df['event_type'] == "transaction")
       return self._zeroing(df, mask, IssueType.EMPTY_AMOUNT_RUB.column)
+
+  def _clean_empty_currency_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = ((df['currency'].isnull()) | (df['currency'] == "")) & (df['event_type'] == "transaction")
+      return self._deletion(df, mask)
 
   def _clean_empty_currency_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       mask = ((df['currency'].isnull()) | (df['currency'] == "")) & (df['event_type'] == "transaction")
       return self._zeroing(df, mask, IssueType.EMPTY_CURRENCY.column)
 
+  def _clean_empty_merchant_category_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = ((df['merchant_category'].isnull()) | (df['merchant_category'] == "")) & (df['event_type'] == "transaction")
+      return self._deletion(df, mask)
+
   def _clean_empty_merchant_category_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       mask = ((df['merchant_category'].isnull()) | (df['merchant_category'] == "")) & (df['event_type'] == "transaction")
       return self._zeroing(df, mask, IssueType.EMPTY_MERCHANT_CATEGORY.column)
+
+  def _clean_empty_merchant_country_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = ((df['merchant_country'].isnull()) | (df['merchant_country'] == "")) & (df['event_type'] == "transaction")
+      return self._deletion(df, mask)
 
   def _clean_empty_merchant_country_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       mask = ((df['merchant_country'].isnull()) | (df['merchant_country'] == "")) & (df['event_type'] == "transaction")
       return self._zeroing(df, mask, IssueType.EMPTY_MERCHANT_COUNTRY.column)
 
+  def _clean_empty_card_last4_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = ((df['card_last4'].isnull()) | (df['card_last4'] == "")) & (df['event_type'] == "transaction")
+      return self._deletion(df, mask)
+
   def _clean_empty_card_last4_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       mask = ((df['card_last4'].isnull()) | (df['card_last4'] == "")) & (df['event_type'] == "transaction")
       return self._zeroing(df, mask, IssueType.EMPTY_CARD_LAST4.column)
+
+  def _clean_empty_session_start_ts_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = ((df['session_start_ts'].isnull()) | (df['session_start_ts'] == "")) & (df['event_type'] == "session")
+      return self._deletion(df, mask)
 
   def _clean_empty_session_start_ts_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       mask = ((df['session_start_ts'].isnull()) | (df['session_start_ts'] == "")) & (df['event_type'] == "session")
       return self._zeroing(df, mask, IssueType.EMPTY_SESSION_START_TS.column)
 
+  def _clean_empty_session_end_ts_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = ((df['session_end_ts'].isnull()) | (df['session_end_ts'] == "")) & (df['event_type'] == "session")
+      return self._deletion(df, mask)
+
   def _clean_empty_session_end_ts_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       mask = ((df['session_end_ts'].isnull()) | (df['session_end_ts'] == "")) & (df['event_type'] == "session")
       return self._zeroing(df, mask, IssueType.EMPTY_SESSION_END_TS.column)
+
+  def _clean_empty_login_success_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = (df['login_success'].isnull()) & (df['event_type'] == "session")
+      return self._deletion(df, mask)
 
   def _clean_empty_login_success_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       mask = (df['login_success'].isnull()) & (df['event_type'] == "session")
       return self._zeroing(df, mask, IssueType.EMPTY_LOGIN_SUCCESS.column)
 
+  def _clean_empty_auth_method_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = ((df['auth_method'].isnull()) | (df['auth_method'] == "")) & (df['event_type'] == "session")
+      return self._deletion(df, mask)
+
   def _clean_empty_auth_method_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       mask = ((df['auth_method'].isnull()) | (df['auth_method'] == "")) & (df['event_type'] == "session")
       return self._zeroing(df, mask, IssueType.EMPTY_AUTH_METHOD.column)
+
+  def _clean_empty_flag_reason_delete(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
+      mask = ((df['flag_reason'].isnull()) | (df['flag_reason'] == "")) & (df['is_flagged'] == True)
+      return self._deletion(df, mask)
 
   def _clean_empty_flag_reason_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
       mask = ((df['flag_reason'].isnull()) | (df['flag_reason'] == "")) & (df['is_flagged'] == True)
