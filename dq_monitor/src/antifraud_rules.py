@@ -132,8 +132,8 @@ class BaseRule(ABC):
 class CarouselRule(BaseRule):
     """
     R1: Правило по частым транзакциям.
-    Если пользователь совершил >= 6 транзакция за <= 30 минут,
-    то блокируются все транзакции, попавшие в 30-минутное окно.
+    Если пользователь совершил >= 6 транзакция за <= 10 минут,
+    то блокируются все транзакции, попавшие в 10-минутное окно.
     """
     def __init__(self):
       self.rule_id: str = "R1"
@@ -208,10 +208,14 @@ class RiscedCategoryRule(BaseRule):
 class ImpossibleGeoRule(BaseRule):
     """
     R4: Правило по транзакциям с невозможной геолокацией.
-    Блокируются все транзакции от пользователя, попавшие в 30-минутное окно,
+    Помечаются фродом все транзакции от пользователя, попавшие в 30-минутное окно,
     если выполнилось одно из условий:
     1) Транзакции были произведены из разных стран
-    2) (Усиление Haversine) Требуемая скорость >1000 км/ч
+    2) (Усиление Haversine) Требуемая скорость > 1000 км/ч
+    TODO
+    1) Помечать фродом только вторую транзакцию - из нестандартной геолокации
+    2) Искать пары транзакций с разными городами (и любым временем)
+    с "требуемой скоростью" > 1000 км/ч и помечать только вторую
     """
     cities_coords = { # координаты городов
     'Moscow': (55.7558, 37.6173),
@@ -279,14 +283,14 @@ class ImpossibleGeoRule(BaseRule):
         df['event_ts_dt'] = pd.to_datetime(df['event_ts'], errors='coerce')
         is_valid_time = df['event_ts_dt'].notna()
         filtred_df = df[
-            df['client_id'].notna() & 
-            df['geo_country'].notna() & 
-            is_valid_time & 
+            df['client_id'].notna() &
+            df['geo_country'].notna() &
+            is_valid_time &
             is_transaction
         ].copy()
         filtred_df.sort_values(['client_id', 'event_ts_dt'], inplace=True)
         mask = pd.Series(False, index=df.index)
-        for client_id, group in filtred_df.groupby('client_id'):
+        for _, group in filtred_df.groupby('client_id'):
             times = group['event_ts_dt'].values
             countries = group['geo_country'].values
             indices = group.index.values
@@ -305,6 +309,96 @@ class ImpossibleGeoRule(BaseRule):
         df.drop(columns=['event_ts_dt'], inplace=True)
         self.triggered_count = mask.sum()
         return mask
+    
+    def test_haversine(self, df):
+        real_fraud = pd.read_csv('dq_monitor/data/ground_truth/fraud_labels.csv')
+        count_TP = 0; count_hv = 0
+        is_transaction = df['event_type'] == 'transaction'
+        df['event_ts_dt'] = pd.to_datetime(df['event_ts'], errors='coerce')
+        is_valid_time = df['event_ts_dt'].notna()
+        filtred_df = df[
+            df['client_id'].notna() &
+            df['geo_country'].notna() &
+            is_valid_time &
+            is_transaction
+        ].copy()
+        filtred_df.sort_values(['client_id', 'event_ts_dt'], inplace=True)
+        mask = pd.Series(False, index=df.index)
+        for _, group in filtred_df.groupby('client_id'):
+            times = group['event_ts_dt'].values
+            countries = group['geo_country'].values
+            indices = group.index.values
+            start = 0
+            for end in range(len(group)):
+                while (times[end] - times[start]) / np.timedelta64(1, 's') > 1800:
+                    start += 1
+                if end > start:
+                    window_countries = countries[start:end+1]
+                    if len(np.unique(window_countries)) > 1:
+                        mask.loc[indices[start:end+1]] = True
+                    else:
+                        if self.is_strange_speed(group.iloc[start:end+1]):
+                            mask.loc[indices[start:end+1]] = True
+                            part_group = group.iloc[start:end+1]
+                            print(part_group[['event_id', 'client_id', 'event_ts', 'geo_city']])
+                            part_real_fraud = real_fraud[ real_fraud['event_id'].isin(part_group['event_id']) ]
+                            print(real_fraud[ real_fraud['event_id'].isin(part_group['event_id']) ])
+                            count_TP += (part_real_fraud['is_fraud_real'] == True).sum()
+                            count_hv += len(part_group)
+        df['is_fraud_R4'] = mask
+        df.drop(columns=['event_ts_dt'], inplace=True)
+        self.triggered_count = mask.sum()
+        print()
+        print(f"Количество True Positive в усилении Haversine: {count_TP}")
+        print(f"Всего найдено фрода в усилении Haversine: {count_hv}")
+
+class BruteForceTransactionRule(BaseRule):
+    """
+    R5: Правило по большому числу безуспешных сессий с большой транзакцией.
+    Если один пользователь в течение 15 минут 3 раза неудачно авторизировался
+    и сделал транзакцию на сумму >50'000, то помечаем фродом и сессии, и транзакции.
+    """
+    def __init__(self):
+      self.rule_id: str = "R5"
+      self.name: str = "Brute force transaction "
+      self.description: str = "Detects brute force transactions"
+      self.triggered_count: int = 0
+    
+    def use_rule(self, df):
+        df['event_ts_dt'] = pd.to_datetime(df['event_ts'], errors='coerce')
+        is_valid_time = df['event_ts_dt'].notna()
+        filtred_df = df[
+            df['client_id'].notna() & 
+            is_valid_time
+        ].copy()
+        filtred_df.sort_values(['client_id', 'event_ts_dt'], inplace=True)
+        mask = pd.Series(False, index=df.index)
+        for client_id, group in filtred_df.groupby('client_id'):
+            event_types = group['event_type'].values
+            login_success = group['login_success'].values
+            amounts = group['amount_rub'].values
+            times = group['event_ts_dt'].values
+            indices = group.index.values
+            count_false_login = 0
+            false_login_positions = []
+            start = 0
+            for end in range(len(group)):
+                if event_types[end] == "session" and not login_success[end]:
+                    count_false_login += 1
+                    false_login_positions.append(end)
+                while (times[end] - times[start]) / np.timedelta64(1, 's') > 900:
+                    if event_types[start] == "session" and not login_success[start]:
+                        count_false_login -= 1
+                        false_login_positions.pop(0)
+                    start += 1
+                # проверяем на выполнимость BruteForceTransactionRule
+                if count_false_login >= 3:
+                    if event_types[end] == 'transaction' and amounts[end] > 50000:
+                        mask.loc[indices[end]] = True
+                        mask.loc[indices[false_login_positions]] = True
+        df.drop(columns=['event_ts_dt'], inplace=True)
+        self.triggered_count = mask.sum()
+        return mask
 
 class RuleEngine():
     """
@@ -316,7 +410,7 @@ class RuleEngine():
         total_mask = pd.Series(False, index=df.index)
         triggered_rules = pd.Series('', index=df.index)
         rules_info = []
-        for rule in [CarouselRule(), NightWithdrawalRule(), RiscedCategoryRule(), ImpossibleGeoRule()]:
+        for rule in [CarouselRule(), NightWithdrawalRule(), RiscedCategoryRule(), ImpossibleGeoRule(), BruteForceTransactionRule()]:
           mask_rule = rule.use_rule(df)
           rule_str = pd.Series(',', index=df.index).where(total_mask&mask_rule, '') + \
             pd.Series(rule.rule_id, index=df.index).where(mask_rule, '')
@@ -331,7 +425,8 @@ class RuleEngine():
 # df = load_events('dq_monitor/data/raw/events_dirty.csv')
 
 # rule4 = ImpossibleGeoRule()
-# rule4.use_rule(df)
+# rule4.test_haversine(df)
+# print(rule4.return_examples(df, mask, 10))
 # engine = RuleEngine()
 # ans1,ans2 = engine.run_all(df)
 
