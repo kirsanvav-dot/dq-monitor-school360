@@ -142,29 +142,31 @@ class CarouselRule(BaseRule):
       self.triggered_count: int = 0
 
     def use_rule(self, df: pd.DataFrame) -> "pd.Series[bool]":
+      # создаю маску с помощью скользящего окна
+      is_data = pd.to_datetime(df['event_ts'], errors='coerce').notna()
       is_transaction = df['event_type'] == 'transaction'
-      df['event_ts_dt'] = pd.to_datetime(df['event_ts'], errors='coerce')
-      is_valid_time = df['event_ts_dt'].notna()
-      filtred_df = df[
-          df['client_id'].notna() & 
-          is_valid_time & 
-          is_transaction
-      ].copy()
-      filtred_df.sort_values(['client_id', 'event_ts_dt'], inplace=True)
-      mask = pd.Series(False, index=df.index)
-      for client_id, group in filtred_df.groupby('client_id'):
-          times = group['event_ts_dt'].values
-          countries = group['geo_country'].values
-          indices = group.index.values
-          start = 0
-          for end in range(len(group)):
-              while (times[end] - times[start]) / np.timedelta64(1, 's') > 600:
-                  start += 1
-              if end - start >= 5:
-                  mask.loc[indices[start:end+1]] = True
-      self.triggered_count = mask.sum()
-      df.drop(columns=['event_ts_dt'], inplace=True)
-      return mask
+      filtred_df = df[df['client_id'].notna() & is_data & is_transaction].copy()
+      filtred_df['event_ts'] = pd.to_datetime(filtred_df['event_ts'], errors='coerce')
+      filtred_df = filtred_df.sort_values(['client_id','event_ts'])
+      count_in_window = filtred_df.set_index('event_ts').groupby('client_id')['event_id'].rolling(window='10min').count()
+      mask1 = count_in_window > 5
+      # размазываю True по предыдущим 5 процессам
+      shifts = [mask1.shift(-i).fillna(False) for i in range(0,6)]
+      mask = pd.concat(shifts, axis=1).any(axis=1)
+      # пытаюсь вернуть стандартные индексы для маски
+      mask = mask.reset_index(name='is_frod')
+      mask['event_ts'] = mask['event_ts'].astype(str)
+      ans = (
+          df.reset_index().merge(
+          mask.drop_duplicates(),
+          on = ['client_id', 'event_ts'],
+          how = 'left'
+          ).set_index('index')
+      )['is_frod'].fillna(False)
+      ans = ans & (df['event_type'] == 'transaction') # дополнительная проверка на транзакцию
+      self.triggered_count = ans.sum()
+      return ans
+
 
 class NightWithdrawalRule(BaseRule):
     """
@@ -421,21 +423,22 @@ class RuleEngine():
         return (new_df, rules_info)
 
 # экспериментирую, тестирую
-# from data_loader import load_events
-# df = load_events('dq_monitor/data/raw/events_dirty.csv')
+from data_loader import load_events
+df = load_events('dq_monitor/data/raw/events_dirty.csv')
+# df = 
 
 # rule4 = ImpossibleGeoRule()
 # rule4.test_haversine(df)
 # print(rule4.return_examples(df, mask, 10))
-# engine = RuleEngine()
-# ans1,ans2 = engine.run_all(df)
+engine = RuleEngine()
+ans1,ans2 = engine.run_all(df)
 
-# print("Часть итоговой таблицы:")
-# print(ans1[ans1['is_fraud_predicted']].sample(25))
-# print()
-# print("Данные относительно каждого правила:")
-# print(ans2)
-# print()
+print("Часть итоговой таблицы:")
+print(ans1[ans1['is_fraud_predicted']].sample(25))
+print()
+print("Данные относительно каждого правила:")
+print(ans2)
+print()
 
 # df = load_events('test_data_strange_timestamps.csv')
 # rule1 = CarouselRule()
