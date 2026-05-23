@@ -30,3 +30,6 @@ env/
 # Local notes
 notes.md
 .scratch*
+
+# Secrets
+*.env

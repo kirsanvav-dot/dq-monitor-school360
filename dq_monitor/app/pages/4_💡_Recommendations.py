@@ -12,7 +12,7 @@ from src.schemes import Recomendations
 @st.cache_resource
 def getOpenAIClient():
     try:
-        f = open(".scratch.txt")
+        f = open("api_key.env")
         apiKey = f.read()
     except:
         st.error("Не удалось найти API ключ!!!")

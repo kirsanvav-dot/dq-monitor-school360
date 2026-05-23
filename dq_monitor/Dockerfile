@@ -26,6 +26,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ ./src/
 COPY app/ ./app/
 COPY .streamlit/ ./.streamlit/
+COPY ./api_key.env ./api_key.env
 
 # ────────────────────────────────────────────────────────────────────────
 # EXPOSE — Streamlit по умолчанию слушает порт 8501.
