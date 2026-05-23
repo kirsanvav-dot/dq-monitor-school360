@@ -14,25 +14,13 @@ from src.viz import plot_confusion_matrix
 
 st.set_page_config(page_title="Antifraud Demo", page_icon="🚨", layout="wide")
 
-# --- ПРОДВИНУТАЯ ТИПОГРАФИКА И ЦЕНТРИРОВАНИЕ ---
-st.markdown("""
-<style>
-    /* Основной текст */
-    html, body, [class*="css"], p, div, span, label, li { font-family: 'Arial', sans-serif !important; font-size: 15px !important; color: #334155; }
-    h1 { font-size: 28px !important; font-weight: 700 !important; color: #0f172a !important; margin-bottom: 0.5rem !important; }
-    h2 { font-size: 22px !important; font-weight: 600 !important; color: #1e293b !important; margin-top: 1rem !important; }
-    h3 { font-size: 18px !important; font-weight: 600 !important; color: #1e293b !important; }
-
-    /* Метрики */
-    [data-testid="stMetricValue"] { font-size: 28px !important; font-weight: 700 !important; color: #0f172a !important; }
-    [data-testid="stMetricLabel"] p { font-size: 15px !important; color: #64748b !important; font-weight: 600 !important; }
-    [data-testid="stMetricDelta"] div { font-size: 14px !important; font-weight: 600 !important; }
-
-    /* Таблицы (Центрирование и стиль) */
-    [data-testid="stTable"] th { font-size: 15px !important; font-weight: 600 !important; text-align: center !important; background-color: #f8fafc !important; }
-    [data-testid="stTable"] td { font-size: 14px !important; text-align: center !important; vertical-align: middle !important; }
-</style>
-""", unsafe_allow_html=True)
+# Глобальные стили Arial + Центрирование
+st.markdown("""<style>
+    html, body, [class*="css"] { font-family: Arial, sans-serif !important; font-size: 15px !important; }
+    h1 { font-size: 22px !important; }
+    .stMetric label { font-size: 15px !important; }
+    [data-testid="stTable"] td, [data-testid="stTable"] th { text-align: center !important; }
+</style>""", unsafe_allow_html=True)
 
 
 # --- КЕШИРОВАНИЕ ---
@@ -57,7 +45,7 @@ if "df_dirty" not in st.session_state or "df_clean" not in st.session_state:
     st.warning("Сначала загрузите датасет и выполните очистку на странице Cleaning.")
     st.stop()
 
-# --- БЛОК 1: ВЫБОР ИСТОЧНИКА МЕТОК ---
+# --- БЛОК 1: ВЫБОР ИСТОЧНИКА МЕТОК (БЕЗ АВТОМАТИКИ) ---
 st.subheader("1. Подготовка эталонных меток (Ground Truth)")
 
 col_source_1, col_source_2 = st.columns(2)
@@ -76,12 +64,14 @@ with col_source_2:
     st.write("Если у вас нет файла, используйте имитацию фрода на основе текущих данных.")
     if st.button("Сгенерировать демо-метки"):
         ids = st.session_state["df_dirty"]['event_id'].unique()
+        # Имитируем: каждый 20-й — фрод (стабильный результат через hash)
         st.session_state["mock_labels_data"] = pd.DataFrame({
             'event_id': ids,
             'is_fraud_real': [hash(str(i)) % 20 == 0 for i in ids]
         })
         st.success("Демо-метки созданы!")
 
+# Проверка, что метки выбраны
 if labels is None:
     if "mock_labels_data" in st.session_state:
         labels = st.session_state["mock_labels_data"]
@@ -90,6 +80,7 @@ if labels is None:
         st.info("👈 Загрузите файл с метками или нажмите кнопку «Сгенерировать демо-метки», чтобы начать анализ.")
         st.stop()
 
+# Индикатор активного режима
 st.info(f"**{mode_label}**")
 
 # --- БЛОК 2: РАСЧЕТЫ ---
@@ -101,14 +92,19 @@ cm_dirty, cm_clean, comp, r_dirty, r_clean = get_full_antifraud_analysis(
 
 # --- БЛОК 3: БИЗНЕС-МЕТРИКИ ---
 st.header("2. Сравнение эффективности системы")
-money_saved = comp["delta"]["tp"] * 85000
 
-m1, m2, m3, m4, m5 = st.columns(5)
+# Абсолютное снижение пропусков (FN) – положительная величина
+fn_reduction = -comp["delta"]["fn"]   # т.к. delta["fn"] = FN_after - FN_before < 0 при улучшении
+
+# Общая экономия = (доп. пойманные TP + переставшие пропускаться FN) × стоимость одного фрода
+total_frauds_prevented = comp["delta"]["tp"] + fn_reduction
+money_saved = total_frauds_prevented * 85000
+
+m1, m2, m3, m4 = st.columns(4)
 m1.metric("Доп. поймано фрода", f"+{comp['delta']['tp']} шт")
-m2.metric("Снижение пропусков", f"{comp['delta']['fn']} шт", delta_color="inverse")
+m2.metric("Снижение пропусков", f"{fn_reduction} шт", delta_color="normal")   # теперь положительное число
 m3.metric("Прирост Recall", f"+{comp['delta']['recall_pp']}%")
-m4.metric("F1-Score (После)", f"{comp['after']['f1']:.3f}", delta=f"+{comp['delta']['f1_pp']}%")
-m5.metric("Экономия (прогноз)", f"{money_saved:,.0f} ₽", delta="Profit")
+m4.metric("Экономия (прогноз)", f"{money_saved:,.0f} ₽", delta="Profit")
 
 st.divider()
 
@@ -135,7 +131,7 @@ metrics_comp = pd.DataFrame([
     }
 ])
 metrics_comp.index = range(1, len(metrics_comp) + 1)
-st.table(metrics_comp)  # Центрирование применится через CSS
+st.table(metrics_comp.style.set_properties(**{'text-align': 'center'}))
 
 # --- БЛОК 5: МАТРИЦЫ ---
 c_l, c_r = st.columns(2)
@@ -160,7 +156,7 @@ rules_comp = pd.DataFrame({
 }).reset_index()
 
 rules_comp.index = range(1, len(rules_comp) + 1)
-st.table(rules_comp)  # Центрирование применится через CSS
+st.table(rules_comp.style.set_properties(**{'text-align': 'center'}))
 
 st.success(f"""
 ### Итог для защиты:

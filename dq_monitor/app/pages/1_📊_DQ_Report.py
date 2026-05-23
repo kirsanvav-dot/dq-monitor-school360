@@ -14,27 +14,18 @@ from src.viz import plot_dq_score_radar, plot_issues_breakdown
 
 st.set_page_config(page_title="Отчет DQ", layout="wide")
 
-# --- ПРОДВИНУТАЯ ТИПОГРАФИКА И ЦЕНТРИРОВАНИЕ ---
+# --- ГЛОБАЛЬНЫЕ СТИЛИ: Arial + Центрирование ячеек ---
 st.markdown("""
 <style>
-    /* Основной текст */
-    html, body, [class*="css"], p, div, span, label, li {
-        font-family: 'Arial', sans-serif !important;
-        font-size: 15px !important;
-        color: #334155;
+    html, body, [class*="css"] { font-family: Arial, sans-serif !important; }
+    h1 { font-size: 22px !important; font-weight: bold !important; }
+
+    /* Принудительное центрирование текста во всех таблицах */
+    [data-testid="stTable"] td, [data-testid="stTable"] th { 
+        text-align: center !important; 
+        vertical-align: middle !important; 
     }
-    /* Заголовки разного уровня */
-    h1 { font-size: 28px !important; font-weight: 700 !important; color: #0f172a !important; margin-bottom: 0.5rem !important; }
-    h2 { font-size: 22px !important; font-weight: 600 !important; color: #1e293b !important; margin-top: 1rem !important; }
-    h3 { font-size: 18px !important; font-weight: 600 !important; color: #1e293b !important; }
-
-    /* Метрики (Стильные крупные цифры) */
-    [data-testid="stMetricValue"] { font-size: 28px !important; font-weight: 700 !important; color: #0f172a !important; }
-    [data-testid="stMetricLabel"] p { font-size: 15px !important; color: #64748b !important; font-weight: 600 !important; }
-
-    /* Таблицы (Центрирование и стиль) */
-    [data-testid="stTable"] th { font-size: 15px !important; font-weight: 600 !important; text-align: center !important; background-color: #f8fafc !important; }
-    [data-testid="stTable"] td { font-size: 14px !important; text-align: center !important; vertical-align: middle !important; }
+    .stMetric label { font-size: 15px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -73,17 +64,21 @@ st.divider()
 # --- БЛОК 2: ГРАФИКИ ---
 col_left, col_right = st.columns(2)
 with col_left:
+    # Радар (оси английские внутри viz.py)
     st.plotly_chart(plot_dq_score_radar(score.to_dict()), use_container_width=True)
 with col_right:
+    # Бар-чарт проблем
     st.plotly_chart(plot_issues_breakdown(report.to_dataframe()), use_container_width=True)
 
 st.divider()
 
-# --- БЛОК 3: ТАБЛИЦА ---
+# --- БЛОК 3: ТАБЛИЦА (ЦЕНТРИРОВАНИЕ + АНГЛИЙСКОЕ ИЗМЕРЕНИЕ + НУМЕРАЦИЯ С 1) ---
 st.subheader("📋 Детальный список найденных проблем")
 rep_df = report.to_dataframe()
 
 if not rep_df.empty:
+    # 1. Убираем технические колонки и 'column' (Затронутые столбцы)
+    # 2. Оставляем содержимое 'dimension' на английском, но меняем заголовок
     display_df = rep_df.drop(columns=['issue_type', 'column']).rename(columns={
         'dimension': 'Измерение',
         'description': 'Описание проблемы',
@@ -91,10 +86,10 @@ if not rep_df.empty:
         'percent_affected': '%'
     })
 
-    # Нумерация с 1
+    # 3. Настройка нумерации: начинаем с 1
     display_df.index = range(1, len(display_df) + 1)
 
-    # Вывод таблицы (центрирование применится через CSS)
+    # 4. Вывод таблицы (центрирование применится через CSS в начале файла)
     st.table(display_df)
 else:
     st.success("🎉 Проблем не обнаружено! Данные идеальны.")
