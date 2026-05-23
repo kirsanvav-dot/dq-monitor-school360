@@ -245,77 +245,73 @@ class ImpossibleGeoRule(BaseRule):
       self.triggered_count: int = 0
 
     @staticmethod
-    def haversine(lat1, lon1, lat2, lon2):
-      """Расстояние в км между двумя точками"""
-      R = 6371  # радиус Земли в км
-      lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
-      dlat = lat2 - lat1
-      dlon = lon2 - lon1
-      a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
-      c = 2 * asin(sqrt(a))
-      return R * c
-
-    def calculate_speed(self, item1: pd.Series, item2: pd.Series):
-      """Вычисляет скорость между двумя городами"""
-      city1 = item1['geo_city']
-      city2 = item2['geo_city']
-      coord1 = self.cities_coords[city1]
-      coord2 = self.cities_coords[city2]
-      distance = self.haversine(coord1[0], coord1[1], coord2[0], coord2[1])
-      delta_time = abs(item1['event_ts_dt'] - item2['event_ts_dt'])
-      delta_time = delta_time / np.timedelta64(1, 'h')
-      if delta_time < 0.001:
-          if city1 != city2:
-              return float('INF')
-          else:
-              return 0
-      return distance / delta_time
-
-    def is_strange_speed(self, window):
-      """Проверяет аномальную скорость в окне"""
-      window = window[window['geo_city'].notna()]
-      if any([
-          (self.calculate_speed(window.iloc[i], window.iloc[i+1]) > 1000)
-          for i in range(len(window)-1)
-          ]):
-          return True
+    def haversine_vectorized(lat1, lon1, lat2, lon2):
+        R = 6371
+        lat1, lon1, lat2, lon2 = map(np.radians, [lat1, lon1, lat2, lon2])
+        dlat = lat2 - lat1
+        dlon = lon2 - lon1
+        a = np.sin(dlat / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2) ** 2
+        c = 2 * np.arcsin(np.sqrt(a))
+        return R * c
 
     def use_rule(self, df):
-        is_transaction = df['event_type'] == 'transaction'
         df['event_ts_dt'] = pd.to_datetime(df['event_ts'], errors='coerce')
+        is_transaction = df['event_type'] == 'transaction'
         is_valid_time = df['event_ts_dt'].notna()
-        filtred_df = df[
-            df['client_id'].notna() &
+        mask = pd.Series(False, index=df.index)
+        # обычная проверка (разные страны)
+        filtred_df_1 = df[
+            df['client_id'].notna() & 
             df['geo_country'].notna() &
+            is_valid_time & 
+            is_transaction
+        ].copy()
+        filtred_df_1.sort_values(['client_id', 'event_ts_dt'], inplace=True)
+        filtred_df_1['last_event_type'] = filtred_df_1.groupby('client_id')['event_type'].shift(1)
+        filtred_df_1['last_geo_country'] = filtred_df_1.groupby('client_id')['geo_country'].shift(1)
+        filtred_df_1['last_ts_dt'] = filtred_df_1.groupby('client_id')['event_ts_dt'].shift(1)
+        is_imp_country = (
+            (filtred_df_1['event_type'] == 'transaction') &
+            (filtred_df_1['last_event_type'] == 'transaction') &
+            (filtred_df_1['geo_country'] != filtred_df_1['last_geo_country']) &
+            (pd.notna(filtred_df_1['last_geo_country'])) &
+            ((filtred_df_1['event_ts_dt'] - filtred_df_1['last_ts_dt']) <= pd.Timedelta(minutes=30))
+        )
+        # Проверяю, что "необходимая скорость" > 1000 км/ч
+        # векторизованный способ
+        filtred_df_2 = df[
+            df['client_id'].notna() &
+            df['geo_city'].notna() &
             is_valid_time &
             is_transaction
         ].copy()
-        filtred_df.sort_values(['client_id', 'event_ts_dt'], inplace=True)
-        mask = pd.Series(False, index=df.index)
-        for _, group in filtred_df.groupby('client_id'):
-            times = group['event_ts_dt'].values
-            countries = group['geo_country'].values
-            indices = group.index.values
-            start = 0
-            for end in range(len(group)):
-                while (times[end] - times[start]) / np.timedelta64(1, 's') > 1800:
-                    start += 1
-                if end > start:
-                    window_countries = countries[start:end+1]
-                    if len(np.unique(window_countries)) > 1:
-                        mask.loc[indices[start:end+1]] = True
-                    else:
-                        if self.is_strange_speed(group.iloc[start:end+1]):
-                            mask.loc[indices[start:end+1]] = True
-        df['is_fraud_R4'] = mask
-        df.drop(columns=['event_ts_dt'], inplace=True)
+        filtred_df_2.sort_values(['client_id', 'event_ts_dt'], inplace=True)
+        filtred_df_2['last_event_type'] = filtred_df_2.groupby('client_id')['event_type'].shift(1)
+        filtred_df_2['last_city'] = filtred_df_2.groupby('client_id')['geo_city'].shift(1)
+        filtred_df_2['last_ts_dt'] = filtred_df_2.groupby('client_id')['event_ts_dt'].shift(1)
+        city_to_lat = {city: coord[0] for city, coord in self.cities_coords.items()}
+        city_to_lon = {city: coord[1] for city, coord in self.cities_coords.items()}
+        # Создаём столбцы с координатами
+        filtred_df_2['lat1'] = filtred_df_2['geo_city'].map(city_to_lat)
+        filtred_df_2['lon1'] = filtred_df_2['geo_city'].map(city_to_lon)
+        filtred_df_2['lat2'] = filtred_df_2['last_city'].map(city_to_lat)
+        filtred_df_2['lon2'] = filtred_df_2['last_city'].map(city_to_lon)
+        # Вычисление дистанции между городами
+        distances = self.haversine_vectorized(filtred_df_2['lat1'], filtred_df_2['lon1'], filtred_df_2['lat2'], filtred_df_2['lon2'])
+        time_diff_hours = (filtred_df_2['event_ts_dt'] - filtred_df_2['last_ts_dt']).dt.total_seconds() / 3600
+        # Расчёт скорости и проверка условия
+        speeds = distances / time_diff_hours
+        is_imp_city = (speeds > 1000) & (time_diff_hours > 0.001)
+        mask = mask | is_imp_city | is_imp_country
         self.triggered_count = mask.sum()
+        df.drop(columns=['event_ts_dt'], inplace=True)
         return mask
     
     def test_haversine(self, df):
         """
         Проверка на haversine - высчитываю TP и FP для усиления правила R4
-        (личное тестирование усилеения)
+        (личное тестирование усиления)
+        ! Устаревшая версия
         """
         real_fraud = pd.read_csv('dq_monitor/data/ground_truth/fraud_labels.csv')
         count_TP = 0; count_hv = 0
@@ -351,7 +347,6 @@ class ImpossibleGeoRule(BaseRule):
                             print(real_fraud[ real_fraud['event_id'].isin(part_group['event_id']) ])
                             count_TP += (part_real_fraud['is_fraud_real'] == True).sum()
                             count_hv += len(part_group)
-        df['is_fraud_R4'] = mask
         df.drop(columns=['event_ts_dt'], inplace=True)
         self.triggered_count = mask.sum()
         print()
@@ -429,11 +424,21 @@ class RuleEngine():
 # экспериментирую, тестирую
 # from data_loader import load_events
 # df = load_events('dq_monitor/data/raw/events_dirty.csv')
-# df = 
 
 # rule4 = ImpossibleGeoRule()
-# rule4.test_haversine(df)
+# mask = rule4.use_rule(df)
 # print(rule4.return_examples(df, mask, 10))
+
+# rule3 = RiscedCategoryRule()
+# mask = rule3.use_rule(df)
+# print(rule3.return_examples(df, mask))
+
+# fraud_true = pd.read_csv('fraud_labels (2).csv')
+# print(fraud_true['is_fraud_real'])
+# print(mask)
+
+# from data_loader import load_events
+# df = load_events('dq_monitor/data/raw/events_dirty.csv')
 # engine = RuleEngine()
 # ans1,ans2 = engine.run_all(df)
 
