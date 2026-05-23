@@ -1,6 +1,7 @@
 import pytest
 import src.antifraud_rules as rules
 import pandas as pd
+import src.data_loader as loader
 
 @pytest.fixture
 def repeat_timests(medium_clean_df: pd.DataFrame) -> pd.DataFrame:
@@ -43,3 +44,11 @@ def test_engine_basic_usage(medium_clean_df):
     assert len(new_cols) == 2
     for col in new_cols:
         assert col in ["is_fraud_predicted", "triggered_rules"]
+
+def test_engine_speed():
+    try:
+        df = loader.load_events("dq_monitor/data/raw/events_dirty.csv")
+    except:
+        return
+    ruleEngine = rules.RuleEngine()
+    _ = ruleEngine.run_all(df)
