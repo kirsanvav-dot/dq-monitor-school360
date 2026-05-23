@@ -75,6 +75,7 @@ st.divider()
 # --- БЛОК 3: ТАБЛИЦА (ЦЕНТРИРОВАНИЕ + АНГЛИЙСКОЕ ИЗМЕРЕНИЕ + НУМЕРАЦИЯ С 1) ---
 st.subheader("📋 Детальный список найденных проблем")
 rep_df = report.to_dataframe()
+st.session_state["data_issues"] = report
 
 if not rep_df.empty:
     # 1. Убираем технические колонки и 'column' (Затронутые столбцы)

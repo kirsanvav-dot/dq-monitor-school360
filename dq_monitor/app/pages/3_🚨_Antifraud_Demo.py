@@ -56,13 +56,18 @@ with col_source_1:
     st.write("**Вариант А: Реальный аудит**")
     labels_file = st.file_uploader("Загрузите fraud_labels.csv", type=["csv"], key="real_labels")
     if labels_file:
-        labels = pd.read_csv(labels_file)
-        mode_label = "📂 Режим: Загруженный файл"
+        st.session_state["labels_data"] = pd.read_csv(labels_file)
+        columns = st.session_state["labels_data"].columns
+        if "is_fraud_real" not in columns or "event_id" not in columns:
+            st.warning("Necessary columns are abscent")
+            st.session_state.pop("labels_data")
 
 with col_source_2:
     st.write("**Вариант Б: Демонстрация**")
     st.write("Если у вас нет файла, используйте имитацию фрода на основе текущих данных.")
     if st.button("Сгенерировать демо-метки"):
+        if "labels_data" in st.session_state:
+            st.session_state.pop("labels_data")
         ids = st.session_state["df_dirty"]['event_id'].unique()
         # Имитируем: каждый 20-й — фрод (стабильный результат через hash)
         st.session_state["mock_labels_data"] = pd.DataFrame({
@@ -72,13 +77,16 @@ with col_source_2:
         st.success("Демо-метки созданы!")
 
 # Проверка, что метки выбраны
-if labels is None:
+if "labels_data" not in st.session_state:
     if "mock_labels_data" in st.session_state:
         labels = st.session_state["mock_labels_data"]
         mode_label = "🧪 Режим: Демонстрационные метки"
     else:
         st.info("👈 Загрузите файл с метками или нажмите кнопку «Сгенерировать демо-метки», чтобы начать анализ.")
         st.stop()
+else:
+    labels = st.session_state["labels_data"]
+    mode_label = "📂 Режим: Загруженный файл"
 
 # Индикатор активного режима
 st.info(f"**{mode_label}**")
