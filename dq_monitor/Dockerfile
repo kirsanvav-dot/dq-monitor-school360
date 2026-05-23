@@ -25,6 +25,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Код приложения — копируем после установки зависимостей.
 COPY src/ ./src/
 COPY app/ ./app/
+COPY .streamlit/ ./.streamlit/
 
 # ────────────────────────────────────────────────────────────────────────
 # EXPOSE — Streamlit по умолчанию слушает порт 8501.
