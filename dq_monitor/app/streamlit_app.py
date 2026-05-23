@@ -61,17 +61,17 @@ uploaded = st.file_uploader(
     help="Файл должен содержать колонки: event_id, client_id, event_ts, event_type и др.",
 )
 
-with st.expander("Или загрузить из локальной папки данных (для разработки)"):
-    local_path = Path("dq_monitor/data/raw/events_dirty.csv")
-    if st.button("Загрузить локальный файл"):
-        try:
-            df_local = load_events(local_path)
-            st.session_state["df_dirty"] = df_local
-            for key in ["dq_score_after", "cleaning_log", "df_clean"]:
-                if key in st.session_state: del st.session_state[key]
-            st.success(f"✅ Загружено {len(df_local):,} строк из {local_path}")
-        except Exception as e:
-            st.error(f"Файл не найден или ошибка: {e}")
+# with st.expander("Или загрузить из локальной папки данных (для разработки)"):
+#     local_path = Path("dq_monitor/data/raw/events_dirty.csv")
+#     if st.button("Загрузить локальный файл"):
+#         try:
+#             df_local = load_events(local_path)
+#             st.session_state["df_dirty"] = df_local
+#             for key in ["dq_score_after", "cleaning_log", "df_clean"]:
+#                 if key in st.session_state: del st.session_state[key]
+#             st.success(f"✅ Загружено {len(df_local):,} строк из {local_path}")
+#         except Exception as e:
+#             st.error(f"Файл не найден или ошибка: {e}")
 
 if uploaded is not None:
     try:

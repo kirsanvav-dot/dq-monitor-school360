@@ -7,7 +7,7 @@ class Recomendation(BaseModel):
     problem: str
     impact: str
     solution: str
-    priority: Literal["High", "Mid", "Low"]
+    priority: Literal["High", "Medium", "Low"]
 
 class Recomendations(BaseModel):
     recomendations: List[Recomendation]
