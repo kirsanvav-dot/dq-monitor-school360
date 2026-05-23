@@ -368,36 +368,54 @@ class BruteForceTransactionRule(BaseRule):
     def use_rule(self, df):
         df['event_ts_dt'] = pd.to_datetime(df['event_ts'], errors='coerce')
         is_valid_time = df['event_ts_dt'].notna()
-        filtred_df = df[
-            df['client_id'].notna() & 
+        filtered_df = df[
+            df['client_id'].notna() &
             is_valid_time
         ].copy()
-        filtred_df.sort_values(['client_id', 'event_ts_dt'], inplace=True)
+        filtered_df.sort_values(['client_id', 'event_ts_dt'], inplace=True)
+        filtered_df['is_failed_login'] = (
+            (filtered_df['event_type'] == 'session') &
+            (~filtered_df['login_success'].fillna(False))
+        )
+        filtered_df['prev_failed'] = (
+            filtered_df
+            .groupby('client_id')['is_failed_login']
+            .shift(1)
+        )
+        s = (
+            filtered_df
+            .groupby('client_id')
+            .rolling('15min', on='event_ts_dt')['prev_failed']
+            .sum()
+            .reset_index(level=0, drop=True)
+        )
+        s.index = filtered_df.index
+        filtered_df['failed_logins_15min'] = s.fillna(0)
+        is_large_transaction = (
+            (filtered_df['event_type'] == 'transaction') &
+            (filtered_df['amount_rub'] > 50000) &
+            filtered_df['amount_rub'].notna()
+        )
+        is_fraud_trigger = is_large_transaction & (filtered_df['failed_logins_15min'] >= 3)
+        fraud_transaction_indices = filtered_df[is_fraud_trigger].index
+        client_groups = filtered_df.groupby('client_id')
         mask = pd.Series(False, index=df.index)
-        for client_id, group in filtred_df.groupby('client_id'):
-            event_types = group['event_type'].values
-            login_success = group['login_success'].values
-            amounts = group['amount_rub'].values
-            times = group['event_ts_dt'].values
-            indices = group.index.values
-            count_false_login = 0
-            false_login_positions = []
-            start = 0
-            for end in range(len(group)):
-                if event_types[end] == "session" and not login_success[end]:
-                    count_false_login += 1
-                    false_login_positions.append(end)
-                while (times[end] - times[start]) / np.timedelta64(1, 's') > 900:
-                    if event_types[start] == "session" and not login_success[start]:
-                        count_false_login -= 1
-                        false_login_positions.pop(0)
-                    start += 1
-                # проверяем на выполнимость BruteForceTransactionRule
-                if count_false_login >= 3:
-                    if event_types[end] == 'transaction' and amounts[end] > 50000:
-                        mask.loc[indices[end]] = True
-                        mask.loc[indices[false_login_positions]] = True
-        df.drop(columns=['event_ts_dt'], inplace=True)
+
+        for trans_idx in fraud_transaction_indices:
+            trans_row = filtered_df.loc[trans_idx]
+            client_id = trans_row['client_id']
+            trans_time = trans_row['event_ts_dt']
+            client_events = client_groups.get_group(client_id)
+            window_mask = (
+                (client_events['event_ts_dt'] <= trans_time) &
+                (client_events['event_ts_dt'] >= trans_time - pd.Timedelta(minutes=15))
+            )
+            window_events = client_events[window_mask]
+            failed_sessions = window_events[window_events['is_failed_login']]
+            mask[trans_idx] = True
+            if not failed_sessions.empty:
+                mask[failed_sessions.index] = True
+        df.drop(columns=['event_ts_dt'], inplace=True, errors='ignore')
         self.triggered_count = mask.sum()
         return mask
 
@@ -422,11 +440,12 @@ class RuleEngine():
         return (new_df, rules_info)
 
 # экспериментирую, тестирую
-# from data_loader import load_events
-# df = load_events('dq_monitor/data/raw/events_dirty.csv')
+from data_loader import load_events
+df = load_events('dq_monitor/data/raw/events_dirty.csv')
 
-# rule4 = ImpossibleGeoRule()
-# mask = rule4.use_rule(df)
+rule4 = BruteForceTransactionRule()
+mask = rule4.use_rule(df)
+print('FINISH')
 # print(rule4.return_examples(df, mask, 10))
 
 # rule3 = RiscedCategoryRule()
