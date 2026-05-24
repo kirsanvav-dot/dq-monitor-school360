@@ -6,6 +6,8 @@
 Используйте отсюда:
   compute_confusion_matrix(predictions, labels) -> ConfusionMatrix
   attach_ground_truth(df_predicted, fraud_labels)  -> df с is_fraud_real
+  evaluate_on_cohort(df_pred, fraud_labels, cohort) -> честная оценка на фикс. когорте
+  compute_newly_caught_fraud(eval_dirty, eval_clean) -> сколько фрода реально допоймали
   compare(cm_dirty, cm_clean)                       -> dict со сравнением
 
 Изучите код как образец dataclass'ов — это удобный паттерн для других
@@ -104,12 +106,66 @@ def attach_ground_truth(
 ) -> pd.DataFrame:
     """Приклеить ground truth к предсказаниям по event_id.
 
-    Если event_id в предсказаниях нет в labels (например, очистка
-    удалила строку), считаем is_fraud_real=False.
+    Если event_id из предсказаний нет в labels, считаем is_fraud_real=False.
+    Для сравнения dirty vs clean после удаления строк используйте evaluate_on_cohort.
     """
     merged = df_with_predictions.merge(fraud_labels, on="event_id", how="left")
     merged["is_fraud_real"] = merged["is_fraud_real"].fillna(False).astype(bool)
     return merged
+
+
+def evaluate_on_cohort(
+    df_with_predictions: pd.DataFrame,
+    fraud_labels: pd.DataFrame,
+    cohort_event_ids: Sequence,
+) -> pd.DataFrame:
+    """Оценить предсказания на фиксированной когорте event_id.
+
+    Нужно для честного сравнения до/после очистки: удалённые строки остаются
+    в когорте, is_fraud_predicted для них = False (правила не сработали на
+    отсутствующей строке), is_fraud_real берётся из fraud_labels.
+
+    Args:
+        df_with_predictions: DataFrame с event_id и is_fraud_predicted.
+        fraud_labels: эталон с event_id и is_fraud_real.
+        cohort_event_ids: фиксированный набор id (обычно все event_id из dirty).
+
+    Returns:
+        DataFrame с колонками event_id, is_fraud_predicted, is_fraud_real.
+    """
+    cohort = pd.DataFrame({"event_id": pd.unique(pd.Series(cohort_event_ids))})
+    labels = (
+        fraud_labels[["event_id", "is_fraud_real"]]
+        .drop_duplicates(subset="event_id", keep="first")
+    )
+    out = cohort.merge(labels, on="event_id", how="left")
+    out["is_fraud_real"] = out["is_fraud_real"].fillna(False).astype(bool)
+
+    pred_cols = ["event_id", "is_fraud_predicted"]
+    pred = df_with_predictions[pred_cols].drop_duplicates(subset="event_id", keep="first")
+    out = out.merge(pred, on="event_id", how="left")
+    out["is_fraud_predicted"] = out["is_fraud_predicted"].fillna(False).astype(bool)
+    return out
+
+
+def compute_newly_caught_fraud(
+    eval_before: pd.DataFrame,
+    eval_after: pd.DataFrame,
+) -> int:
+    """Сколько fraud-событий перешли из пропуска (FN) в детекцию (TP) на одной когорте."""
+    before = eval_before[["event_id", "is_fraud_predicted", "is_fraud_real"]].rename(
+        columns={"is_fraud_predicted": "pred_before"}
+    )
+    after = eval_after[["event_id", "is_fraud_predicted"]].rename(
+        columns={"is_fraud_predicted": "pred_after"}
+    )
+    merged = before.merge(after, on="event_id", how="inner")
+    mask = (
+        merged["is_fraud_real"]
+        & ~merged["pred_before"].astype(bool)
+        & merged["pred_after"].astype(bool)
+    )
+    return int(mask.sum())
 
 
 def compare(before: ConfusionMatrix, after: ConfusionMatrix) -> dict:

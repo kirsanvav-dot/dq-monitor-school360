@@ -131,8 +131,19 @@ R5 -- много неудачных попыток входа (event_type==sessi
     result += issuesDf.to_string()
     # give rules metrics
 
-    dirtyConfusionMatrix = metrics.compute_confusion_matrix(merged_dirty["is_fraud_predicted"], merged_dirty["is_fraud_real"])
-    cleanConfusionMatrix = metrics.compute_confusion_matrix(merged_clean["is_fraud_predicted"], merged_clean["is_fraud_real"])
+    cohort = merged_dirty["event_id"].dropna().unique()
+    eval_dirty = metrics.evaluate_on_cohort(merged_dirty, merged_dirty[["event_id", "is_fraud_real"]], cohort)
+    eval_clean = metrics.evaluate_on_cohort(
+        merged_clean,
+        merged_dirty[["event_id", "is_fraud_real"]],
+        cohort,
+    )
+    dirtyConfusionMatrix = metrics.compute_confusion_matrix(
+        eval_dirty["is_fraud_predicted"], eval_dirty["is_fraud_real"]
+    )
+    cleanConfusionMatrix = metrics.compute_confusion_matrix(
+        eval_clean["is_fraud_predicted"], eval_clean["is_fraud_real"]
+    )
 
     result += "\n\nМетрики rulebased на грязных данных\n\n"
     result += confusion_matrix_to_str(dirtyConfusionMatrix)

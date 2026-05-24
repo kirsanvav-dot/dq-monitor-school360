@@ -3,7 +3,12 @@ import pandas as pd
 import pytest
 
 from src.metrics import (
-    ConfusionMatrix, attach_ground_truth, compare, compute_confusion_matrix,
+    ConfusionMatrix,
+    attach_ground_truth,
+    compare,
+    compute_confusion_matrix,
+    evaluate_on_cohort,
+    compute_newly_caught_fraud,
 )
 
 
@@ -37,6 +42,41 @@ def test_attach_ground_truth_missing_ids_treated_as_not_fraud():
     labels = pd.DataFrame({"event_id": ["a", "b"], "is_fraud_real": [True, False]})
     merged = attach_ground_truth(df_pred, labels)
     assert merged.loc[merged["event_id"] == "c", "is_fraud_real"].iloc[0] == False
+
+
+def test_cohort_eval_deleted_fraud_not_counted_as_caught():
+  """Удаление пропущенного фрода не должно уменьшать FN и не давать ложный прирост TP."""
+  labels = pd.DataFrame({"event_id": ["a", "b"], "is_fraud_real": [True, True]})
+  df_dirty_pred = pd.DataFrame(
+      {"event_id": ["a", "b"], "is_fraud_predicted": [False, False]}
+  )
+  df_clean_pred = pd.DataFrame({"event_id": ["a"], "is_fraud_predicted": [False]})
+  cohort = ["a", "b"]
+  eval_dirty = evaluate_on_cohort(df_dirty_pred, labels, cohort)
+  eval_clean = evaluate_on_cohort(df_clean_pred, labels, cohort)
+  cm_dirty = compute_confusion_matrix(
+      eval_dirty["is_fraud_predicted"], eval_dirty["is_fraud_real"]
+  )
+  cm_clean = compute_confusion_matrix(
+      eval_clean["is_fraud_predicted"], eval_clean["is_fraud_real"]
+  )
+  assert cm_dirty.fn == 2 and cm_clean.fn == 2
+  assert compute_newly_caught_fraud(eval_dirty, eval_clean) == 0
+
+
+def test_newly_caught_fraud_counts_real_tp_gain():
+  labels = pd.DataFrame({"event_id": ["a", "b"], "is_fraud_real": [True, False]})
+  eval_dirty = evaluate_on_cohort(
+      pd.DataFrame({"event_id": ["a", "b"], "is_fraud_predicted": [False, False]}),
+      labels,
+      ["a", "b"],
+  )
+  eval_clean = evaluate_on_cohort(
+      pd.DataFrame({"event_id": ["a", "b"], "is_fraud_predicted": [True, False]}),
+      labels,
+      ["a", "b"],
+  )
+  assert compute_newly_caught_fraud(eval_dirty, eval_clean) == 1
 
 
 def test_compare_returns_proper_deltas():

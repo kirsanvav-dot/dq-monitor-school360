@@ -9,7 +9,13 @@ if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
 from src.antifraud_rules import RuleEngine
-from src.metrics import compute_confusion_matrix, attach_ground_truth, compare
+from src.metrics import (
+    compute_confusion_matrix,
+    attach_ground_truth,
+    evaluate_on_cohort,
+    compute_newly_caught_fraud,
+    compare,
+)
 from src.viz import plot_confusion_matrix
 
 st.set_page_config(page_title="Antifraud Demo", page_icon="🚨", layout="wide")
@@ -32,15 +38,23 @@ def get_full_antifraud_analysis(df_dirty, df_clean, labels):
     df_dirty_pred, r_dirty = engine.run_all(df_dirty)
     df_clean_pred, r_clean = engine.run_all(df_clean)
 
-    # Склейка с метками
+    # Склейка с метками (для просмотра строк) и честная оценка на одной когорте dirty
     merged_dirty = attach_ground_truth(df_dirty_pred, labels)
     merged_clean = attach_ground_truth(df_clean_pred, labels)
     st.session_state["merged_clean"] = merged_clean
     st.session_state["merged_dirty"] = merged_dirty
 
-    # Расчет матриц
-    cm_dirty = compute_confusion_matrix(merged_dirty["is_fraud_predicted"], merged_dirty["is_fraud_real"])
-    cm_clean = compute_confusion_matrix(merged_clean["is_fraud_predicted"], merged_clean["is_fraud_real"])
+    cohort = df_dirty["event_id"].dropna().unique()
+    eval_dirty = evaluate_on_cohort(df_dirty_pred, labels, cohort)
+    eval_clean = evaluate_on_cohort(df_clean_pred, labels, cohort)
+
+    cm_dirty = compute_confusion_matrix(
+        eval_dirty["is_fraud_predicted"], eval_dirty["is_fraud_real"]
+    )
+    cm_clean = compute_confusion_matrix(
+        eval_clean["is_fraud_predicted"], eval_clean["is_fraud_real"]
+    )
+    newly_caught = compute_newly_caught_fraud(eval_dirty, eval_clean)
 
     # --- ЧЕСТНЫЙ РАСЧЕТ ЭКОНОМИИ ПО ЕДИНОЙ БАЗЕ СУММ ---
 
@@ -50,13 +64,12 @@ def get_full_antifraud_analysis(df_dirty, df_clean, labels):
     clean_amounts = clean_unique.set_index('event_id')['amount_rub'].copy()
     clean_amounts = pd.to_numeric(clean_amounts, errors='coerce').fillna(0)
 
-    # 2. Находим event_id тех транзакций, которые система пропустила (FN) ДО очистки
-    fn_dirty_mask = (~merged_dirty["is_fraud_predicted"].fillna(False).astype(bool)) & (merged_dirty["is_fraud_real"])
-    fn_dirty_events = merged_dirty.loc[fn_dirty_mask, "event_id"].dropna().unique()
+    # 2–3. FN на той же когорте (удалённые строки не «исчезают» из пропусков)
+    fn_dirty_mask = (~eval_dirty["is_fraud_predicted"]) & eval_dirty["is_fraud_real"]
+    fn_dirty_events = eval_dirty.loc[fn_dirty_mask, "event_id"].dropna().unique()
 
-    # 3. Находим event_id тех транзакций, которые система пропустила (FN) ПОСЛЕ очистки
-    fn_clean_mask = (~merged_clean["is_fraud_predicted"].fillna(False).astype(bool)) & (merged_clean["is_fraud_real"])
-    fn_clean_events = merged_clean.loc[fn_clean_mask, "event_id"].dropna().unique()
+    fn_clean_mask = (~eval_clean["is_fraud_predicted"]) & eval_clean["is_fraud_real"]
+    fn_clean_events = eval_clean.loc[fn_clean_mask, "event_id"].dropna().unique()
 
     # 4. Считаем финансовые потери, используя ТОЛЬКО ПРАВИЛЬНЫЕ суммы из clean_amounts
     # Метод .reindex() безопасно сопоставляет список event_id с нашим справочником сумм
@@ -66,7 +79,15 @@ def get_full_antifraud_analysis(df_dirty, df_clean, labels):
     # 5. Итоговая честная экономия
     exact_money_saved = loss_dirty - loss_clean
 
-    return cm_dirty, cm_clean, compare(cm_dirty, cm_clean), r_dirty, r_clean, exact_money_saved
+    return (
+        cm_dirty,
+        cm_clean,
+        compare(cm_dirty, cm_clean),
+        r_dirty,
+        r_clean,
+        exact_money_saved,
+        newly_caught,
+    )
 
 
 st.title("🚨 Antifraud Demo: Влияние качества данных")
@@ -121,7 +142,7 @@ else:
 st.info(f"**{mode_label}**")
 
 # --- БЛОК 2: РАСЧЕТЫ ---
-cm_dirty, cm_clean, comp, r_dirty, r_clean, money_saved = get_full_antifraud_analysis(
+cm_dirty, cm_clean, comp, r_dirty, r_clean, money_saved, newly_caught = get_full_antifraud_analysis(
     st.session_state["df_dirty"],
     st.session_state["df_clean"],
     labels
@@ -130,10 +151,14 @@ cm_dirty, cm_clean, comp, r_dirty, r_clean, money_saved = get_full_antifraud_ana
 # --- БЛОК 3: БИЗНЕС-МЕТРИКИ ---
 st.header("2. Сравнение эффективности системы")
 
-fn_reduction = -comp["delta"]["fn"]
+fn_reduction = comp["before"]["fn"] - comp["after"]["fn"]
 
 m1, m2, m3, m4 = st.columns(4)
-m1.metric("Доп. поймано фрода", f"+{comp['delta']['tp']} шт")
+m1.metric(
+    "Доп. поймано фрода",
+    f"+{newly_caught} шт",
+    help="События с is_fraud_real=True, которые были пропуском до очистки и стали детекцией после (на когорте dirty).",
+)
 m2.metric("Снижение пропусков", f"{fn_reduction} шт", delta_color="normal")
 m3.metric("Прирост Recall", f"+{comp['delta']['recall_pp']}%")
 m4.metric(
