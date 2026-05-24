@@ -107,7 +107,10 @@ def attach_ground_truth(
     Если event_id в предсказаниях нет в labels (например, очистка
     удалила строку), считаем is_fraud_real=False.
     """
-    merged = df_with_predictions.merge(fraud_labels, on="event_id", how="left")
+    # В clean CSV иногда есть is_fraud_real — без drop merge даст _x/_y и KeyError.
+    df_pred = df_with_predictions.drop(columns=["is_fraud_real"], errors="ignore")
+    labels = fraud_labels[["event_id", "is_fraud_real"]].copy()
+    merged = df_pred.merge(labels, on="event_id", how="left")
     merged["is_fraud_real"] = merged["is_fraud_real"].fillna(False).astype(bool)
     return merged
 

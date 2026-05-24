@@ -39,6 +39,19 @@ def test_attach_ground_truth_missing_ids_treated_as_not_fraud():
     assert merged.loc[merged["event_id"] == "c", "is_fraud_real"].iloc[0] == False
 
 
+def test_attach_ground_truth_ignores_is_fraud_real_in_predictions():
+    """Clean CSV may still carry is_fraud_real; labels file is authoritative."""
+    df_pred = pd.DataFrame({
+        "event_id": ["a", "b"],
+        "is_fraud_predicted": [True, False],
+        "is_fraud_real": [False, False],
+    })
+    labels = pd.DataFrame({"event_id": ["a", "b"], "is_fraud_real": [True, False]})
+    merged = attach_ground_truth(df_pred, labels)
+    assert merged.loc[merged["event_id"] == "a", "is_fraud_real"].iloc[0] == True
+    assert merged.loc[merged["event_id"] == "b", "is_fraud_real"].iloc[0] == False
+
+
 def test_compare_returns_proper_deltas():
     before = ConfusionMatrix(tp=10, fp=5, fn=20, tn=100)
     after = ConfusionMatrix(tp=18, fp=2, fn=12, tn=103)
