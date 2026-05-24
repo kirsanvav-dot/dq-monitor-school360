@@ -28,7 +28,7 @@ CLEAN_TYPE_LABELS: dict[CleanType, str] = {
 DEFAULT_CLEAN_TYPE: dict[IssueType, CleanType] = {
     # Completeness
     IssueType.EMPTY_EVENT_ID: CleanType.DELETE,
-    IssueType.EMPTY_CLIENT_ID: CleanType.ZEROING,
+    IssueType.EMPTY_CLIENT_ID: CleanType.DELETE,
     IssueType.EMPTY_EVENT_TYPE: CleanType.DELETE,
     IssueType.EMPTY_EVENT_TS: CleanType.ZEROING,
     IssueType.EMPTY_DEVICE_TYPE: CleanType.ZEROING,
