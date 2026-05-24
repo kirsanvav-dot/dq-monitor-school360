@@ -22,7 +22,7 @@ def getOpenAIClient():
     apiKey = apiKey.strip()
     return OpenAI(api_key=apiKey, base_url="https://openrouter.ai/api/v1")
 
-@st.cache_data
+@st.cache_data(show_spinner="Обращение к LLM для получение рекомендаций...")
 def getRecomendations(merged_dirty: pd.DataFrame,
                       merged_clean: pd.DataFrame,
                       _data_issues: Report,
