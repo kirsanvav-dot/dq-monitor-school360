@@ -41,7 +41,7 @@ def getRecomendations(merged_dirty: pd.DataFrame,
 st.set_page_config(page_title="Recommendations", page_icon="💡", layout="wide")
 st.title("💡 Рекомендации дата-инженерам")
 
-if "merged_clean" not in st.session_state or "merged_dirty" not in st.session_state:
+if "merged_clean" not in st.session_state or "merged_dirty" not in st.session_state or "data_issues" not in st.session_state:
     st.warning("Сначала пройдитесь по предыдущим страницам и соберите информацию о вашем датасете")
     st.stop()
 
