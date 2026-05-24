@@ -8,6 +8,8 @@ import streamlit as st
 from openai import OpenAI
 import pandas as pd
 from src.schemes import Recomendations
+from src.profiler import Report
+from src.prompt_builder import build_prompt
 
 @st.cache_resource
 def getOpenAIClient():
@@ -21,17 +23,15 @@ def getOpenAIClient():
     return OpenAI(api_key=apiKey, base_url="https://openrouter.ai/api/v1")
 
 @st.cache_data
-def getRecomendations(dirty_data: pd.DataFrame,
-                      clean_data: pd.DataFrame,
-                      labels: pd.DataFrame,
-                      _data_issues: pd.DataFrame,
+def getRecomendations(merged_dirty: pd.DataFrame,
+                      merged_clean: pd.DataFrame,
+                      _data_issues: Report,
                       _openAIClient: OpenAI) -> pd.DataFrame:
     responce = _openAIClient.responses.parse(model="openai/gpt-4.1",
                                              input=[
-                                                 {"role": "system", "content": "Make recomendations for problem resolving."},
                                                  {
                                                      "role": "user",
-                                                     "content": "Наша таня громко плачет. Уронила в речку мячик"
+                                                     "content": build_prompt(merged_dirty, merged_clean, _data_issues)
                                                  }
                                              ],
                                              text_format=Recomendations)
@@ -41,24 +41,18 @@ def getRecomendations(dirty_data: pd.DataFrame,
 st.set_page_config(page_title="Recommendations", page_icon="💡", layout="wide")
 st.title("💡 Рекомендации дата-инженерам")
 
-if ("labels_data" not in st.session_state and "mock_labels_data" not in st.session_state) \
-    or "data_issues" not in st.session_state:
+if "merged_clean" not in st.session_state or "merged_dirty" not in st.session_state:
     st.warning("Сначала пройдитесь по предыдущим страницам и соберите информацию о вашем датасете")
     st.stop()
-
-if "labels_data" in st.session_state:
-    labels = st.session_state["labels_data"]
-else:
-    labels = st.session_state["mock_labels_data"]
 
 client = getOpenAIClient()
 
 if client is None:
     st.stop()
 
-st.table(getRecomendations(st.session_state["df_dirty"],
-                               st.session_state["df_clean"],
-                               labels, st.session_state["data_issues"], client))
+st.table(getRecomendations(st.session_state["merged_dirty"],
+                               st.session_state["merged_clean"],
+                               st.session_state["data_issues"], client))
 # st.markdown("""
 # **Цель страницы:** превратить найденные DQ-проблемы в конкретные
 # изменения, которые дата-инженеры банка могут внести в pipeline.

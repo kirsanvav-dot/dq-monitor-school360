@@ -35,6 +35,8 @@ def get_full_antifraud_analysis(df_dirty, df_clean, labels):
     # Склейка с метками
     merged_dirty = attach_ground_truth(df_dirty_pred, labels)
     merged_clean = attach_ground_truth(df_clean_pred, labels)
+    st.session_state["merged_clean"] = merged_clean
+    st.session_state["merged_dirty"] = merged_dirty
 
     # Расчет матриц
     cm_dirty = compute_confusion_matrix(merged_dirty["is_fraud_predicted"], merged_dirty["is_fraud_real"])
