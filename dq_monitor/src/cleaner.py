@@ -460,7 +460,11 @@ class DataCleaner:
       return self._deletion(df, mask)
 
   def _clean_invalid_format_date_zeroing(self, df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Index]:
-      parsed = pd.to_datetime(df['event_ts'], errors='coerce')
+      parsed = pd.to_datetime(df['event_ts'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
+      mask1 = parsed.isna()
+      if mask1.any():
+          parsed2 = pd.to_datetime(df['event_ts'], format='%Y-%m-%d %H:%M', errors='coerce')
+          parsed[mask1] = parsed2
       mask = parsed.isna() & df['event_ts'].notna() & (df['event_ts'].astype(str).str.strip() != "")
       return self._zeroing(df, mask, IssueType.INVALID_FORMAT_DATE.column)
 
