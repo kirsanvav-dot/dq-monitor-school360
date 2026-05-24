@@ -38,7 +38,7 @@ EXPOSE 8501
 #   --server.address=0.0.0.0 — слушать на всех интерфейсах (иначе изнутри
 #     контейнера приложение не будет доступно снаружи)
 #   --server.headless=true   — не пытаться открыть браузер (его в контейнере нет)
-CMD ["streamlit", "run", "app/streamlit_app.py", \
+CMD ["streamlit", "run", "app/main.py", \
      "--server.address=0.0.0.0", \
      "--server.port=8501", \
      "--server.headless=true"]
