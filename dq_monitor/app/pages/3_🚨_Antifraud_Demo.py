@@ -145,24 +145,40 @@ st.divider()
 
 # --- БЛОК 4: СВОДНАЯ ТАБЛИЦА МЕТРИК ---
 st.subheader("📊 Сравнение ключевых метрик детекции")
+
+# Вспомогательная функция для форматирования дельты
+def format_delta(val):
+    if val > 0:
+        return f"+{val}%"
+    elif val < 0:
+        return f"{val}%" # Минус уже встроен в само число
+    else:
+        return "0%"
+
 metrics_comp = pd.DataFrame([
     {
         "Метрика": "Precision (Точность)",
         "Грязные данные": f"{comp['before']['precision']:.2%}",
         "После очистки": f"{comp['after']['precision']:.2%}",
-        "Улучшение": f"+{comp['delta']['precision_pp']}%"
+        "Улучшение": format_delta(comp['delta']['precision_pp'])
     },
     {
         "Метрика": "Recall (Полнота)",
         "Грязные данные": f"{comp['before']['recall']:.2%}",
         "После очистки": f"{comp['after']['recall']:.2%}",
-        "Улучшение": f"+{comp['delta']['recall_pp']}%"
+        "Улучшение": format_delta(comp['delta']['recall_pp'])
     },
     {
         "Метрика": "F1-Score (Баланс)",
         "Грязные данные": f"{comp['before']['f1']:.3f}",
         "После очистки": f"{comp['after']['f1']:.3f}",
-        "Улучшение": f"+{comp['delta']['f1_pp']}%"
+        "Улучшение": format_delta(comp['delta']['f1_pp'])
+    },
+    {
+        "Метрика": "Accuracy (Аккуратность)", # Вернули Accuracy
+        "Грязные данные": f"{comp['before']['accuracy']:.2%}",
+        "После очистки": f"{comp['after']['accuracy']:.2%}",
+        "Улучшение": "---" # Accuracy обычно не сравнивают дельтой при дисбалансе
     }
 ])
 metrics_comp.index = range(1, len(metrics_comp) + 1)
@@ -193,8 +209,3 @@ rules_comp = pd.DataFrame({
 rules_comp.index = range(1, len(rules_comp) + 1)
 st.table(rules_comp.style.set_properties(**{'text-align': 'center'}))
 
-st.success(f"""
-    ### Итог для защиты:
-    Очистка данных позволила антифрод-системе работать эффективнее: F1-мера выросла на **{comp['delta']['f1_pp']}%**. 
-    Мы доказали на цифрах: **Data Quality напрямую влияет на безопасность банка**.
-    """)
